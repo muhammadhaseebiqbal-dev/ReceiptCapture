@@ -10,11 +10,9 @@ import '../core/services/ocr_service.dart';
 
 class ReceiptDetailsScreen extends StatefulWidget {
   final String imagePath;
-  
-  const ReceiptDetailsScreen({
-    Key? key,
-    required this.imagePath,
-  }) : super(key: key);
+
+  const ReceiptDetailsScreen({Key? key, required this.imagePath})
+    : super(key: key);
 
   @override
   State<ReceiptDetailsScreen> createState() => _ReceiptDetailsScreenState();
@@ -25,7 +23,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
   final _companyController = TextEditingController();
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
-  
+
   bool _isProcessing = false;
   bool _isConnected = false;
   String _extractedCompany = '';
@@ -43,7 +41,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
     setState(() {
       _isConnected = connectivityResult != ConnectivityResult.none;
     });
-    
+
     // Listen to connectivity changes
     Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       setState(() {
@@ -60,11 +58,13 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
     try {
       // Use OCR service to extract data from the image
       final ocrService = OCRService();
-      final extractedData = await ocrService.extractTextFromImage(widget.imagePath);
-      
+      final extractedData = await ocrService.extractTextFromImage(
+        widget.imagePath,
+      );
+
       _extractedCompany = extractedData['company'] ?? 'Unknown Business';
       _extractedAmount = extractedData['amount'] ?? 0.0;
-      
+
       setState(() {
         _companyController.text = _extractedCompany;
         _amountController.text = _extractedAmount.toStringAsFixed(2);
@@ -91,13 +91,15 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       _showConnectedAlert();
     } else {
       // Save to offline queue
-      context.read<ReceiptBloc>().add(CreateReceipt(
-        imagePath: widget.imagePath,
-        merchantName: _companyController.text,
-        amount: double.tryParse(_amountController.text) ?? 0.0,
-        date: DateTime.now(),
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
-      ));
+      context.read<ReceiptBloc>().add(
+        CreateReceipt(
+          imagePath: widget.imagePath,
+          merchantName: _companyController.text,
+          amount: double.tryParse(_amountController.text) ?? 0.0,
+          date: DateTime.now(),
+          notes: _notesController.text.isEmpty ? null : _notesController.text,
+        ),
+      );
       _showOfflineQueueAlert();
     }
   }
@@ -126,7 +128,9 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Offline Mode'),
-        content: const Text('Receipt saved to offline queue. It will be uploaded when internet connection is available.'),
+        content: const Text(
+          'Receipt saved to offline queue. It will be uploaded when internet connection is available.',
+        ),
         actions: [
           TextButton(
             onPressed: () {
@@ -158,30 +162,32 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
     );
 
     await Future.delayed(const Duration(seconds: 3));
-    
+
     // Simulate random success/failure
     final random = Random();
     final success = random.nextBool();
-    
+
     // Create receipt with upload status
-    context.read<ReceiptBloc>().add(CreateReceipt(
-      imagePath: widget.imagePath,
-      merchantName: _companyController.text,
-      amount: double.tryParse(_amountController.text) ?? 0.0,
-      date: DateTime.now(),
-      notes: _notesController.text.isEmpty ? null : _notesController.text,
-    ));
-    
+    context.read<ReceiptBloc>().add(
+      CreateReceipt(
+        imagePath: widget.imagePath,
+        merchantName: _companyController.text,
+        amount: double.tryParse(_amountController.text) ?? 0.0,
+        date: DateTime.now(),
+        notes: _notesController.text.isEmpty ? null : _notesController.text,
+      ),
+    );
+
     Navigator.pop(context); // Close loading
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(success ? 'Success' : 'Failed'),
         content: Text(
-          success 
-            ? 'Receipt uploaded successfully!'
-            : 'Upload failed. Receipt saved to retry queue.'
+          success
+              ? 'Receipt uploaded successfully!'
+              : 'Upload failed. Receipt saved to retry queue.',
         ),
         actions: [
           TextButton(
@@ -215,7 +221,9 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: _isConnected ? Colors.green.shade100 : Colors.orange.shade100,
+                  color: _isConnected
+                      ? Colors.green.shade100
+                      : Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: _isConnected ? Colors.green : Colors.orange,
@@ -231,7 +239,9 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                     Text(
                       _isConnected ? 'Connected to Internet' : 'Offline Mode',
                       style: TextStyle(
-                        color: _isConnected ? Colors.green.shade700 : Colors.orange.shade700,
+                        color: _isConnected
+                            ? Colors.green.shade700
+                            : Colors.orange.shade700,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -248,13 +258,10 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    File(widget.imagePath),
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.file(File(widget.imagePath), fit: BoxFit.cover),
                 ),
               ),
-              
+
               const SizedBox(height: 24),
 
               // Processing indicator or form
@@ -293,7 +300,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Amount Field
@@ -313,7 +320,9 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                     ),
                     prefixIcon: const Icon(Icons.attach_money),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter amount';
@@ -324,7 +333,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                     return null;
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Notes Field
@@ -346,7 +355,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                   ),
                   maxLines: 3,
                 ),
-                
+
                 const SizedBox(height: 32),
 
                 // Send Receipt Button

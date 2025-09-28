@@ -37,15 +37,15 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
   Future<String?> _cropImage() async {
     try {
       // Get the render object
-      final RenderRepaintBoundary boundary = _cropKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-      
+      final RenderRepaintBoundary boundary =
+          _cropKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+
       // Capture the image
       final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       final ByteData? byteData = await image.toByteData(
         format: ui.ImageByteFormat.png,
       );
-      
+
       if (byteData == null) return null;
 
       // Save the cropped image
@@ -102,7 +102,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
           ? LayoutBuilder(
               builder: (context, constraints) {
                 _screenSize = Size(constraints.maxWidth, constraints.maxHeight);
-                
+
                 return Stack(
                   children: [
                     // Background image
@@ -112,7 +112,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                         fit: BoxFit.contain,
                       ),
                     ),
-                    
+
                     // Crop overlay
                     Positioned.fill(
                       child: CustomPaint(
@@ -126,7 +126,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                         ),
                       ),
                     ),
-                    
+
                     // Draggable crop area
                     Positioned(
                       left: _cropOffset.dx,
@@ -135,10 +135,14 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                         onPanUpdate: (details) {
                           setState(() {
                             _cropOffset = Offset(
-                              (_cropOffset.dx + details.delta.dx)
-                                  .clamp(0, _screenSize.width - _cropSize.width),
-                              (_cropOffset.dy + details.delta.dy)
-                                  .clamp(0, _screenSize.height - _cropSize.height),
+                              (_cropOffset.dx + details.delta.dx).clamp(
+                                0,
+                                _screenSize.width - _cropSize.width,
+                              ),
+                              (_cropOffset.dy + details.delta.dy).clamp(
+                                0,
+                                _screenSize.height - _cropSize.height,
+                              ),
                             );
                           });
                         },
@@ -148,10 +152,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                             width: _cropSize.width,
                             height: _cropSize.height,
                             decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
                             child: ClipRect(
                               child: OverflowBox(
@@ -171,7 +172,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                         ),
                       ),
                     ),
-                    
+
                     // Corner handles for resizing
                     ...List.generate(4, (index) {
                       late Offset handlePosition;
@@ -198,7 +199,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                           );
                           break;
                       }
-                      
+
                       return Positioned(
                         left: handlePosition.dx - 8,
                         top: handlePosition.dy - 8,
@@ -218,14 +219,26 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                                     ),
                                   );
                                   _cropSize = Size(
-                                    (_cropSize.width - details.delta.dx).clamp(100, 400),
-                                    (_cropSize.height - details.delta.dy).clamp(100, 500),
+                                    (_cropSize.width - details.delta.dx).clamp(
+                                      100,
+                                      400,
+                                    ),
+                                    (_cropSize.height - details.delta.dy).clamp(
+                                      100,
+                                      500,
+                                    ),
                                   );
                                   break;
                                 case 3: // Bottom-right
                                   _cropSize = Size(
-                                    (_cropSize.width + details.delta.dx).clamp(100, 400),
-                                    (_cropSize.height + details.delta.dy).clamp(100, 500),
+                                    (_cropSize.width + details.delta.dx).clamp(
+                                      100,
+                                      400,
+                                    ),
+                                    (_cropSize.height + details.delta.dy).clamp(
+                                      100,
+                                      500,
+                                    ),
                                   );
                                   break;
                               }
@@ -246,9 +259,7 @@ class _SimpleCropScreenState extends State<SimpleCropScreen> {
                 );
               },
             )
-          : const Center(
-              child: CircularProgressIndicator(),
-            ),
+          : const Center(child: CircularProgressIndicator()),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         color: Colors.black,
@@ -299,9 +310,8 @@ class CropOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint overlayPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5);
-    
+    final Paint overlayPaint = Paint()..color = Colors.black.withOpacity(0.5);
+
     final Paint borderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke

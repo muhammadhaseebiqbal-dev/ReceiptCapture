@@ -87,27 +87,26 @@ class _CameraScreenState extends State<CameraScreen>
 
     try {
       final XFile image = await _cameraController!.takePicture();
-      
+
       if (mounted) {
         // Navigate to advanced crop screen
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => AdvancedCropScreen(
-              imagePath: image.path,
-            ),
-          ),
-        ).then((croppedPath) {
-          if (croppedPath != null && mounted) {
-            // Navigate to receipt details screen with cropped image
-            Navigator.of(context).push(
+        Navigator.of(context)
+            .push(
               MaterialPageRoute(
-                builder: (context) => ReceiptDetailsScreen(
-                  imagePath: croppedPath,
-                ),
+                builder: (context) => AdvancedCropScreen(imagePath: image.path),
               ),
-            );
-          }
-        });
+            )
+            .then((croppedPath) {
+              if (croppedPath != null && mounted) {
+                // Navigate to receipt details screen with cropped image
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ReceiptDetailsScreen(imagePath: croppedPath),
+                  ),
+                );
+              }
+            });
       }
     } catch (e) {
       if (mounted) {
@@ -125,27 +124,26 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      
+
       if (image != null && mounted) {
         // Navigate to advanced crop screen with selected image
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => AdvancedCropScreen(
-              imagePath: image.path,
-            ),
-          ),
-        ).then((croppedPath) {
-          if (croppedPath != null && mounted) {
-            // Navigate to receipt details screen with cropped image
-            Navigator.of(context).push(
+        Navigator.of(context)
+            .push(
               MaterialPageRoute(
-                builder: (context) => ReceiptDetailsScreen(
-                  imagePath: croppedPath,
-                ),
+                builder: (context) => AdvancedCropScreen(imagePath: image.path),
               ),
-            );
-          }
-        });
+            )
+            .then((croppedPath) {
+              if (croppedPath != null && mounted) {
+                // Navigate to receipt details screen with cropped image
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ReceiptDetailsScreen(imagePath: croppedPath),
+                  ),
+                );
+              }
+            });
       }
     } catch (e) {
       if (mounted) {
@@ -197,11 +195,7 @@ class _CameraScreenState extends State<CameraScreen>
                 width: 1,
               ),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: Icon(icon, color: Colors.white, size: 24),
           ),
           const SizedBox(height: 4),
           Text(
@@ -290,9 +284,7 @@ class _CameraScreenState extends State<CameraScreen>
 
                 // Camera overlay with receipt guide
                 Positioned.fill(
-                  child: CustomPaint(
-                    painter: ReceiptOverlayPainter(),
-                  ),
+                  child: CustomPaint(painter: ReceiptOverlayPainter()),
                 ),
 
                 // Bottom controls
@@ -362,8 +354,6 @@ class _CameraScreenState extends State<CameraScreen>
                               ],
                             ),
                           ),
-
-
                         ],
                       ),
                     ),
@@ -388,11 +378,7 @@ class _CameraScreenState extends State<CameraScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.receipt_long,
-                          color: Colors.white,
-                          size: 32,
-                        ),
+                        Icon(Icons.receipt_long, color: Colors.white, size: 32),
                         const SizedBox(height: 8),
                         Text(
                           'Align receipt within the frame',
@@ -425,9 +411,8 @@ class _CameraScreenState extends State<CameraScreen>
 class ReceiptOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint overlayPaint = Paint()
-      ..color = Colors.black.withOpacity(0.3);
-    
+    final Paint overlayPaint = Paint()..color = Colors.black.withOpacity(0.3);
+
     final Paint borderPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
@@ -452,7 +437,7 @@ class ReceiptOverlayPainter extends CustomPainter {
       ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
       ..addRect(receiptRect)
       ..fillType = PathFillType.evenOdd;
-    
+
     canvas.drawPath(overlayPath, overlayPaint);
 
     // Draw receipt frame border
@@ -460,7 +445,7 @@ class ReceiptOverlayPainter extends CustomPainter {
 
     // Draw corner indicators
     const double cornerLength = 30.0;
-    
+
     // Top-left corner
     canvas.drawLine(
       Offset(receiptRect.left, receiptRect.top),

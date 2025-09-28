@@ -8,11 +8,9 @@ import 'package:image/image.dart' as img;
 
 class AdvancedCropScreen extends StatefulWidget {
   final String imagePath;
-  
-  const AdvancedCropScreen({
-    Key? key,
-    required this.imagePath,
-  }) : super(key: key);
+
+  const AdvancedCropScreen({Key? key, required this.imagePath})
+    : super(key: key);
 
   @override
   State<AdvancedCropScreen> createState() => _AdvancedCropScreenState();
@@ -22,7 +20,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
   late ui.Image _image;
   late Size _imageSize;
   bool _imageLoaded = false;
-  
+
   // Crop points (top-left, top-right, bottom-right, bottom-left)
   List<Offset> _cropPoints = [];
   int? _selectedPointIndex;
@@ -39,12 +37,12 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
     final bytes = await file.readAsBytes();
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
-    
+
     setState(() {
       _image = frame.image;
       _imageSize = Size(_image.width.toDouble(), _image.height.toDouble());
       _imageLoaded = true;
-      
+
       // Auto-detect receipt corners (simplified algorithm)
       _autoDetectCorners();
     });
@@ -54,13 +52,13 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
     // Better auto-detection algorithm
     final width = _imageSize.width;
     final height = _imageSize.height;
-    
+
     // Create a more intelligent rectangle based on typical receipt dimensions
     // Receipts are usually portrait and centered
     final aspectRatio = height / width;
-    
+
     double leftPadding, rightPadding, topPadding, bottomPadding;
-    
+
     if (aspectRatio > 1.5) {
       // Tall image - likely a receipt
       leftPadding = width * 0.05;
@@ -74,15 +72,24 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       topPadding = height * 0.1;
       bottomPadding = height * 0.1;
     }
-    
+
     // Create slightly trapezoid shape to mimic perspective
     _cropPoints = [
-      Offset(leftPadding, topPadding + height * 0.02), // top-left (slightly inward)
+      Offset(
+        leftPadding,
+        topPadding + height * 0.02,
+      ), // top-left (slightly inward)
       Offset(width - rightPadding, topPadding), // top-right
-      Offset(width - rightPadding + width * 0.02, height - bottomPadding), // bottom-right (slightly outward)
-      Offset(leftPadding - width * 0.02, height - bottomPadding + height * 0.02), // bottom-left (slightly outward)
+      Offset(
+        width - rightPadding + width * 0.02,
+        height - bottomPadding,
+      ), // bottom-right (slightly outward)
+      Offset(
+        leftPadding - width * 0.02,
+        height - bottomPadding + height * 0.02,
+      ), // bottom-left (slightly outward)
     ];
-    
+
     // Ensure points are within bounds
     for (int i = 0; i < _cropPoints.length; i++) {
       _cropPoints[i] = Offset(
@@ -90,7 +97,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
         _cropPoints[i].dy.clamp(0, height),
       );
     }
-    
+
     _autoDetected = true;
     setState(() {});
   }
@@ -110,30 +117,29 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       final file = File(widget.imagePath);
       final bytes = await file.readAsBytes();
       final originalImage = img.decodeImage(bytes);
-      
+
       if (originalImage == null) return;
 
       // Rotate image 90 degrees clockwise
       final rotatedImage = img.copyRotate(originalImage, angle: 90);
-      
+
       // Save rotated image
       final rotatedPath = widget.imagePath.replaceAll('.jpg', '_rotated.jpg');
       final rotatedFile = File(rotatedPath);
       await rotatedFile.writeAsBytes(img.encodeJpg(rotatedImage));
-      
+
       // Reload the image with new dimensions
       final codec = await ui.instantiateImageCodec(img.encodeJpg(rotatedImage));
       final frame = await codec.getNextFrame();
-      
+
       setState(() {
         _image = frame.image;
         _imageSize = Size(_image.width.toDouble(), _image.height.toDouble());
         _autoDetectCorners(); // Redetect corners for new orientation
       });
-      
+
       // Update the widget's image path
       // Note: In a real app, you might want to pass this back differently
-      
     } catch (e) {
       print('Error rotating image: $e');
     }
@@ -147,14 +153,26 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       final file = File(widget.imagePath);
       final bytes = await file.readAsBytes();
       final originalImage = img.decodeImage(bytes);
-      
+
       if (originalImage == null) return widget.imagePath;
 
       // Get the crop area bounds
-      final minX = _cropPoints.map((p) => p.dx).reduce(min).clamp(0, _imageSize.width);
-      final maxX = _cropPoints.map((p) => p.dx).reduce(max).clamp(0, _imageSize.width);
-      final minY = _cropPoints.map((p) => p.dy).reduce(min).clamp(0, _imageSize.height);
-      final maxY = _cropPoints.map((p) => p.dy).reduce(max).clamp(0, _imageSize.height);
+      final minX = _cropPoints
+          .map((p) => p.dx)
+          .reduce(min)
+          .clamp(0, _imageSize.width);
+      final maxX = _cropPoints
+          .map((p) => p.dx)
+          .reduce(max)
+          .clamp(0, _imageSize.width);
+      final minY = _cropPoints
+          .map((p) => p.dy)
+          .reduce(min)
+          .clamp(0, _imageSize.height);
+      final maxY = _cropPoints
+          .map((p) => p.dy)
+          .reduce(max)
+          .clamp(0, _imageSize.height);
 
       // Crop the image
       final croppedImage = img.copyCrop(
@@ -169,7 +187,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       final croppedPath = widget.imagePath.replaceAll('.jpg', '_cropped.jpg');
       final croppedFile = File(croppedPath);
       await croppedFile.writeAsBytes(img.encodeJpg(croppedImage));
-      
+
       return croppedPath;
     } catch (e) {
       print('Error cropping image: $e');
@@ -183,7 +201,10 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Crop Receipt', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Crop Receipt',
+          style: TextStyle(color: Colors.white),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -209,22 +230,33 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         // Calculate the display size to fit the image in the container
-                        final screenSize = Size(constraints.maxWidth, constraints.maxHeight);
-                        final imageAspectRatio = _imageSize.width / _imageSize.height;
-                        final screenAspectRatio = screenSize.width / screenSize.height;
-                        
+                        final screenSize = Size(
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                        final imageAspectRatio =
+                            _imageSize.width / _imageSize.height;
+                        final screenAspectRatio =
+                            screenSize.width / screenSize.height;
+
                         Size displaySize;
                         if (imageAspectRatio > screenAspectRatio) {
                           // Image is wider than screen
-                          displaySize = Size(screenSize.width, screenSize.width / imageAspectRatio);
+                          displaySize = Size(
+                            screenSize.width,
+                            screenSize.width / imageAspectRatio,
+                          );
                         } else {
                           // Image is taller than screen
-                          displaySize = Size(screenSize.height * imageAspectRatio, screenSize.height);
+                          displaySize = Size(
+                            screenSize.height * imageAspectRatio,
+                            screenSize.height,
+                          );
                         }
-                        
+
                         final scaleX = displaySize.width / _imageSize.width;
                         final scaleY = displaySize.height / _imageSize.height;
-                        
+
                         return Center(
                           child: Container(
                             width: displaySize.width,
@@ -232,23 +264,24 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                             child: GestureDetector(
                               onPanStart: (details) {
                                 final localPosition = details.localPosition;
-                                
+
                                 // Find the nearest crop point (scale back to display coordinates)
                                 double minDistance = double.infinity;
                                 int nearestIndex = -1;
-                                
+
                                 for (int i = 0; i < _cropPoints.length; i++) {
                                   final scaledPoint = Offset(
                                     _cropPoints[i].dx * scaleX,
                                     _cropPoints[i].dy * scaleY,
                                   );
-                                  final distance = (localPosition - scaledPoint).distance;
+                                  final distance =
+                                      (localPosition - scaledPoint).distance;
                                   if (distance < minDistance && distance < 50) {
                                     minDistance = distance;
                                     nearestIndex = i;
                                   }
                                 }
-                                
+
                                 if (nearestIndex != -1) {
                                   _selectedPointIndex = nearestIndex;
                                 }
@@ -256,13 +289,18 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                               onPanUpdate: (details) {
                                 if (_selectedPointIndex != null) {
                                   final localPosition = details.localPosition;
-                                  
+
                                   // Convert back to image coordinates
-                                  final imageX = (localPosition.dx / scaleX).clamp(0.0, _imageSize.width);
-                                  final imageY = (localPosition.dy / scaleY).clamp(0.0, _imageSize.height);
-                                  
+                                  final imageX = (localPosition.dx / scaleX)
+                                      .clamp(0.0, _imageSize.width);
+                                  final imageY = (localPosition.dy / scaleY)
+                                      .clamp(0.0, _imageSize.height);
+
                                   setState(() {
-                                    _cropPoints[_selectedPointIndex!] = Offset(imageX, imageY);
+                                    _cropPoints[_selectedPointIndex!] = Offset(
+                                      imageX,
+                                      imageY,
+                                    );
                                   });
                                 }
                               },
@@ -309,7 +347,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                               child: CircularProgressIndicator(),
                             ),
                           );
-                          
+
                           final croppedPath = await _cropImage();
                           Navigator.pop(context); // Close loading
                           Navigator.pop(context, croppedPath);
@@ -320,9 +358,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                 ),
               ],
             )
-          : const Center(
-              child: CircularProgressIndicator(),
-            ),
+          : const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -347,10 +383,7 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
       ],
     );
   }
@@ -377,24 +410,30 @@ class CropPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Draw the image scaled to fit the display size
     final paint = Paint();
-    final srcRect = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+    final srcRect = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
     final dstRect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawImageRect(image, srcRect, dstRect, paint);
 
     if (cropPoints.length == 4) {
       // Convert crop points to display coordinates
-      final scaledCropPoints = cropPoints.map((point) => Offset(
-        point.dx * scaleX,
-        point.dy * scaleY,
-      )).toList();
-      
+      final scaledCropPoints = cropPoints
+          .map((point) => Offset(point.dx * scaleX, point.dy * scaleY))
+          .toList();
+
       // Draw overlay (darken areas outside crop)
-      final overlayPaint = Paint()
-        ..color = Colors.black.withOpacity(0.5);
-      
+      final overlayPaint = Paint()..color = Colors.black.withOpacity(0.5);
+
       // Draw full overlay first
-      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), overlayPaint);
-      
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        overlayPaint,
+      );
+
       // Create crop path in display coordinates
       final cropPath = Path();
       if (scaledCropPoints.isNotEmpty) {
@@ -404,19 +443,19 @@ class CropPainter extends CustomPainter {
         }
         cropPath.close();
       }
-      
+
       // Clear the crop area to show the original image
       canvas.save();
       canvas.clipPath(cropPath);
       canvas.drawImageRect(image, srcRect, dstRect, Paint());
       canvas.restore();
-      
+
       // Draw crop lines
       final linePaint = Paint()
         ..color = Colors.blue
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke;
-      
+
       canvas.drawPath(cropPath, linePaint);
 
       // Draw corner points
@@ -426,13 +465,13 @@ class CropPainter extends CustomPainter {
           ..style = PaintingStyle.fill;
 
         canvas.drawCircle(scaledCropPoints[i], 15, pointPaint);
-        
+
         // Draw white border
         final borderPaint = Paint()
           ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3;
-        
+
         canvas.drawCircle(scaledCropPoints[i], 15, borderPaint);
       }
     }

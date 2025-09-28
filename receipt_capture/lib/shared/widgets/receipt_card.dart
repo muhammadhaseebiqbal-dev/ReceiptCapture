@@ -147,7 +147,7 @@ class ReceiptCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppTheme.spacingS),
                   ],
-                  
+
                   // Upload Status Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -155,7 +155,9 @@ class ReceiptCard extends StatelessWidget {
                       vertical: AppTheme.spacingXS,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(receipt.uploadStatus).withOpacity(0.1),
+                      color: _getStatusColor(
+                        receipt.uploadStatus,
+                      ).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppTheme.radiusS),
                     ),
                     child: Row(
