@@ -7,9 +7,30 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header section
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Row(
+                children: [
+                  Text(
+                    'Settings',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Settings list
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
         children: [
           _buildSettingsSection(
             title: 'Receipt Management',
@@ -30,7 +51,38 @@ class SettingsScreen extends StatelessWidget {
                   // TODO: Implement encryption settings
                 },
               ),
+              _buildSettingsTile(
+                icon: Icons.storage_outlined,
+                title: 'Storage Management',
+                subtitle: 'Manage local storage and cache',
+                onTap: () {
+                  // TODO: Implement storage management
+                },
+              ),
+            ],
+          ),
 
+          const SizedBox(height: AppTheme.spacingL),
+
+          _buildSettingsSection(
+            title: 'Camera & Processing',
+            children: [
+              _buildSettingsTile(
+                icon: Icons.camera_alt_outlined,
+                title: 'Camera Settings',
+                subtitle: 'Configure camera preferences',
+                onTap: () {
+                  // TODO: Implement camera settings
+                },
+              ),
+              _buildSettingsTile(
+                icon: Icons.crop_outlined,
+                title: 'Auto-Crop Settings',
+                subtitle: 'Configure automatic cropping',
+                onTap: () {
+                  // TODO: Implement auto-crop settings
+                },
+              ),
             ],
           ),
 
@@ -89,7 +141,9 @@ class SettingsScreen extends StatelessWidget {
               ),
             ],
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

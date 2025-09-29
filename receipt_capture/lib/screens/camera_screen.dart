@@ -23,6 +23,7 @@ class _CameraScreenState extends State<CameraScreen>
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isFlashOn = false;
+  bool _showInstructions = true;
 
   @override
   void initState() {
@@ -66,6 +67,15 @@ class _CameraScreenState extends State<CameraScreen>
         if (mounted) {
           setState(() {
             _isCameraInitialized = true;
+          });
+          
+          // Hide instructions after 1 second delay
+          Future.delayed(const Duration(seconds: 1), () {
+            if (mounted) {
+              setState(() {
+                _showInstructions = false;
+              });
+            }
           });
         }
       }
@@ -295,7 +305,7 @@ class _CameraScreenState extends State<CameraScreen>
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppTheme.spacingL,
-                      vertical: AppTheme.spacingM,
+                      vertical: AppTheme.spacingXL,
                     ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -308,97 +318,112 @@ class _CameraScreenState extends State<CameraScreen>
                       ),
                     ),
                     child: SafeArea(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Gallery button
-                          _buildControlButton(
-                            icon: Icons.photo_library_outlined,
-                            label: 'Gallery',
-                            onPressed: _pickFromGallery,
-                          ),
-
-                          // Capture button
-                          GestureDetector(
-                            onTap: _captureImage,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white,
-                                      width: 4,
-                                    ),
-                                  ),
-                                  child: Container(
-                                    margin: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Capture',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                      child: SizedBox(
+                        height: 120,
+                        child: Stack(
+                          children: [
+                            // Gallery button - Left side
+                            Positioned(
+                              left: 20,
+                              top: 20,
+                              child: _buildControlButton(
+                                icon: Icons.photo_library_outlined,
+                                label: 'Gallery',
+                                onPressed: _pickFromGallery,
+                              ),
                             ),
-                          ),
-                        ],
+
+                            // Capture button - Perfectly centered
+                            Positioned.fill(
+                              child: Center(
+                                child: GestureDetector(
+                                  onTap: _captureImage,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 4,
+                                          ),
+                                        ),
+                                        child: Container(
+                                          margin: const EdgeInsets.all(8),
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Capture',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
 
-                // Instructions
-                Positioned(
-                  top: 120,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppTheme.spacingM),
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingL,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.receipt_long, color: Colors.white, size: 32),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Align receipt within the frame',
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
+                // Instructions with auto-hide
+                if (_showInstructions)
+                  Positioned(
+                    top: 120,
+                    left: 0,
+                    right: 0,
+                    child: AnimatedOpacity(
+                      opacity: _showInstructions ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 500),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppTheme.spacingM),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingL,
                         ),
-                        Text(
-                          'Ensure all corners are visible',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: Colors.white70,
-                          ),
-                          textAlign: TextAlign.center,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
                         ),
-                      ],
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long, color: Colors.white, size: 32),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Align receipt within the frame',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              'Ensure all corners are visible',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -411,103 +436,23 @@ class _CameraScreenState extends State<CameraScreen>
 class ReceiptOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint overlayPaint = Paint()..color = Colors.black.withOpacity(0.3);
-
-    final Paint borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    final Paint cornerPaint = Paint()
-      ..color = Colors.blue
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-
-    // Receipt frame dimensions
-    const double margin = 32.0;
-    final Rect receiptRect = Rect.fromLTRB(
-      margin,
-      size.height * 0.15,
-      size.width - margin,
-      size.height * 0.75,
-    );
-
-    // Draw overlay (darken everything except the receipt area)
-    final Path overlayPath = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
-      ..addRect(receiptRect)
-      ..fillType = PathFillType.evenOdd;
-
-    canvas.drawPath(overlayPath, overlayPaint);
-
-    // Draw receipt frame border
-    canvas.drawRect(receiptRect, borderPaint);
-
-    // Draw corner indicators
-    const double cornerLength = 30.0;
-
-    // Top-left corner
-    canvas.drawLine(
-      Offset(receiptRect.left, receiptRect.top),
-      Offset(receiptRect.left + cornerLength, receiptRect.top),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(receiptRect.left, receiptRect.top),
-      Offset(receiptRect.left, receiptRect.top + cornerLength),
-      cornerPaint,
-    );
-
-    // Top-right corner
-    canvas.drawLine(
-      Offset(receiptRect.right, receiptRect.top),
-      Offset(receiptRect.right - cornerLength, receiptRect.top),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(receiptRect.right, receiptRect.top),
-      Offset(receiptRect.right, receiptRect.top + cornerLength),
-      cornerPaint,
-    );
-
-    // Bottom-left corner
-    canvas.drawLine(
-      Offset(receiptRect.left, receiptRect.bottom),
-      Offset(receiptRect.left + cornerLength, receiptRect.bottom),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(receiptRect.left, receiptRect.bottom),
-      Offset(receiptRect.left, receiptRect.bottom - cornerLength),
-      cornerPaint,
-    );
-
-    // Bottom-right corner
-    canvas.drawLine(
-      Offset(receiptRect.right, receiptRect.bottom),
-      Offset(receiptRect.right - cornerLength, receiptRect.bottom),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(receiptRect.right, receiptRect.bottom),
-      Offset(receiptRect.right, receiptRect.bottom - cornerLength),
-      cornerPaint,
-    );
-
-    // Draw center crosshairs
+    // Draw center crosshairs only (plus sign)
     final Paint crosshairPaint = Paint()
-      ..color = Colors.white.withOpacity(0.5)
+      ..color = Colors.white.withOpacity(0.7)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 2;
 
-    final Offset center = receiptRect.center;
-    const double crosshairLength = 20.0;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    const double crosshairLength = 25.0;
 
+    // Draw horizontal line
     canvas.drawLine(
       Offset(center.dx - crosshairLength, center.dy),
       Offset(center.dx + crosshairLength, center.dy),
       crosshairPaint,
     );
+    
+    // Draw vertical line
     canvas.drawLine(
       Offset(center.dx, center.dy - crosshairLength),
       Offset(center.dx, center.dy + crosshairLength),

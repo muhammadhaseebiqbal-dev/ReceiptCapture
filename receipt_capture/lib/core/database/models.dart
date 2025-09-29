@@ -1,5 +1,18 @@
 import 'package:equatable/equatable.dart';
 
+// Helper function to safely parse amount from various types
+double? _parseAmount(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) {
+    // Remove currency symbols and whitespace
+    String cleanValue = value.replaceAll(RegExp(r'[^\d.-]'), '');
+    return double.tryParse(cleanValue);
+  }
+  return null;
+}
+
 class Receipt extends Equatable {
   final String id;
   final String imagePath;
@@ -87,7 +100,7 @@ class Receipt extends Equatable {
       imagePath: map['image_path'],
       croppedImagePath: map['cropped_image_path'],
       merchantName: map['merchant_name'],
-      amount: map['amount']?.toDouble(),
+      amount: _parseAmount(map['amount']),
       date: map['date'] != null ? DateTime.parse(map['date']) : null,
       category: map['category'],
       notes: map['notes'],

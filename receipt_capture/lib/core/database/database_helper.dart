@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'receipt_capture.db';
-  static const _databaseVersion = 1;
+  static const _databaseVersion = 2;
 
   static const tableReceipts = 'receipts';
   static const tableSyncQueue = 'sync_queue';
@@ -24,6 +24,7 @@ class DatabaseHelper {
   static const columnIsSynced = 'is_synced';
   static const columnUploadStatus = 'upload_status';
   static const columnEncryptedData = 'encrypted_data';
+  static const columnDeletedAt = 'deleted_at';
 
   // Sync queue table columns
   static const columnQueueId = 'queue_id';
@@ -71,7 +72,8 @@ class DatabaseHelper {
         $columnUpdatedAt TEXT NOT NULL,
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
         $columnUploadStatus TEXT NOT NULL DEFAULT 'queued',
-        $columnEncryptedData TEXT
+        $columnEncryptedData TEXT,
+        $columnDeletedAt TEXT
       )
     ''');
 
@@ -104,7 +106,10 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     // Handle database upgrades here
     if (oldVersion < 2) {
-      // Future upgrade logic
+      // Add deleted_at column for soft deletes
+      await db.execute('''
+        ALTER TABLE $tableReceipts ADD COLUMN $columnDeletedAt TEXT
+      ''');
     }
   }
 

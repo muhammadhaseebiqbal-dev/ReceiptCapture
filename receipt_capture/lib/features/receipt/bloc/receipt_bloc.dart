@@ -78,7 +78,7 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
         imagePath: event.imagePath,
         croppedImagePath: event.croppedImagePath,
         merchantName: event.merchantName,
-        amount: event.amount,
+        amount: null, // Amount field removed
         date: event.date ?? DateTime.now(),
         category: event.category,
         notes: event.notes,

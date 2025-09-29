@@ -27,7 +27,7 @@ class ReceiptFormScreen extends StatefulWidget {
 class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _merchantController = TextEditingController();
-  final _amountController = TextEditingController();
+
   final _notesController = TextEditingController();
 
   String? _selectedCategory;
@@ -56,7 +56,7 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
   @override
   void dispose() {
     _merchantController.dispose();
-    _amountController.dispose();
+
     _notesController.dispose();
     super.dispose();
   }
@@ -117,9 +117,6 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
         ? null
         : _merchantController.text.trim();
 
-    final amountText = _amountController.text.trim();
-    final amount = amountText.isEmpty ? null : double.tryParse(amountText);
-
     final notes = _notesController.text.trim().isEmpty
         ? null
         : _notesController.text.trim();
@@ -131,7 +128,6 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
             ? _currentImagePath
             : null,
         merchantName: merchantName,
-        amount: amount,
         date: _selectedDate,
         category: _selectedCategory,
         notes: notes,
@@ -291,26 +287,6 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
             prefixIcon: Icon(Icons.store),
           ),
           textCapitalization: TextCapitalization.words,
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-
-        // Amount
-        TextFormField(
-          controller: _amountController,
-          decoration: const InputDecoration(
-            labelText: 'Amount',
-            hintText: '0.00',
-            prefixIcon: Icon(Icons.attach_money),
-          ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          validator: (value) {
-            if (value != null && value.isNotEmpty) {
-              if (double.tryParse(value) == null) {
-                return 'Please enter a valid amount';
-              }
-            }
-            return null;
-          },
         ),
         const SizedBox(height: AppTheme.spacingM),
 

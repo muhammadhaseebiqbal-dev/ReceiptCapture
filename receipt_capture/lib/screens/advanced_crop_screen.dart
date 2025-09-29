@@ -24,7 +24,6 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
   // Crop points (top-left, top-right, bottom-right, bottom-left)
   List<Offset> _cropPoints = [];
   int? _selectedPointIndex;
-  bool _autoDetected = false;
 
   @override
   void initState() {
@@ -43,107 +42,19 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
       _imageSize = Size(_image.width.toDouble(), _image.height.toDouble());
       _imageLoaded = true;
 
-      // Auto-detect receipt corners (simplified algorithm)
-      _autoDetectCorners();
+      // Initialize crop points to full image
+      final width = _imageSize.width;
+      final height = _imageSize.height;
+      _cropPoints = [
+        const Offset(0, 0), // top-left
+        Offset(width, 0), // top-right
+        Offset(width, height), // bottom-right
+        Offset(0, height), // bottom-left
+      ];
     });
   }
 
-  void _autoDetectCorners() {
-    // Better auto-detection algorithm
-    final width = _imageSize.width;
-    final height = _imageSize.height;
 
-    // Create a more intelligent rectangle based on typical receipt dimensions
-    // Receipts are usually portrait and centered
-    final aspectRatio = height / width;
-
-    double leftPadding, rightPadding, topPadding, bottomPadding;
-
-    if (aspectRatio > 1.5) {
-      // Tall image - likely a receipt
-      leftPadding = width * 0.05;
-      rightPadding = width * 0.05;
-      topPadding = height * 0.08;
-      bottomPadding = height * 0.05;
-    } else {
-      // Wide or square image
-      leftPadding = width * 0.1;
-      rightPadding = width * 0.1;
-      topPadding = height * 0.1;
-      bottomPadding = height * 0.1;
-    }
-
-    // Create slightly trapezoid shape to mimic perspective
-    _cropPoints = [
-      Offset(
-        leftPadding,
-        topPadding + height * 0.02,
-      ), // top-left (slightly inward)
-      Offset(width - rightPadding, topPadding), // top-right
-      Offset(
-        width - rightPadding + width * 0.02,
-        height - bottomPadding,
-      ), // bottom-right (slightly outward)
-      Offset(
-        leftPadding - width * 0.02,
-        height - bottomPadding + height * 0.02,
-      ), // bottom-left (slightly outward)
-    ];
-
-    // Ensure points are within bounds
-    for (int i = 0; i < _cropPoints.length; i++) {
-      _cropPoints[i] = Offset(
-        _cropPoints[i].dx.clamp(0, width),
-        _cropPoints[i].dy.clamp(0, height),
-      );
-    }
-
-    _autoDetected = true;
-    setState(() {});
-  }
-
-  void _resetToFullImage() {
-    _cropPoints = [
-      const Offset(0, 0), // top-left
-      Offset(_imageSize.width, 0), // top-right
-      Offset(_imageSize.width, _imageSize.height), // bottom-right
-      Offset(0, _imageSize.height), // bottom-left
-    ];
-    setState(() {});
-  }
-
-  Future<void> _rotateImage() async {
-    try {
-      final file = File(widget.imagePath);
-      final bytes = await file.readAsBytes();
-      final originalImage = img.decodeImage(bytes);
-
-      if (originalImage == null) return;
-
-      // Rotate image 90 degrees clockwise
-      final rotatedImage = img.copyRotate(originalImage, angle: 90);
-
-      // Save rotated image
-      final rotatedPath = widget.imagePath.replaceAll('.jpg', '_rotated.jpg');
-      final rotatedFile = File(rotatedPath);
-      await rotatedFile.writeAsBytes(img.encodeJpg(rotatedImage));
-
-      // Reload the image with new dimensions
-      final codec = await ui.instantiateImageCodec(img.encodeJpg(rotatedImage));
-      final frame = await codec.getNextFrame();
-
-      setState(() {
-        _image = frame.image;
-        _imageSize = Size(_image.width.toDouble(), _image.height.toDouble());
-        _autoDetectCorners(); // Redetect corners for new orientation
-      });
-
-      // Update the widget's image path
-      // Note: In a real app, you might want to pass this back differently
-    } catch (e) {
-      print('Error rotating image: $e');
-    }
-  }
 
   Future<String> _cropImage() async {
     if (_cropPoints.length != 4) return widget.imagePath;
@@ -209,16 +120,6 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          TextButton(
-            onPressed: _autoDetectCorners,
-            child: const Text('Auto', style: TextStyle(color: Colors.blue)),
-          ),
-          TextButton(
-            onPressed: _resetToFullImage,
-            child: const Text('Reset', style: TextStyle(color: Colors.blue)),
-          ),
-        ],
       ),
       body: _imageLoaded
           ? Column(
@@ -328,13 +229,8 @@ class _AdvancedCropScreenState extends State<AdvancedCropScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildActionButton(
-                        icon: Icons.rotate_left,
-                        label: 'Rotate',
-                        onPressed: _rotateImage,
-                      ),
                       _buildActionButton(
                         icon: Icons.check,
                         label: 'Next',

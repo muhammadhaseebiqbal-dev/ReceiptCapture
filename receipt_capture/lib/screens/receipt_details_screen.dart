@@ -21,13 +21,11 @@ class ReceiptDetailsScreen extends StatefulWidget {
 class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _companyController = TextEditingController();
-  final _amountController = TextEditingController();
   final _notesController = TextEditingController();
 
   bool _isProcessing = false;
   bool _isConnected = false;
   String _extractedCompany = '';
-  double _extractedAmount = 0.0;
 
   @override
   void initState() {
@@ -63,11 +61,9 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       );
 
       _extractedCompany = extractedData['company'] ?? 'Unknown Business';
-      _extractedAmount = extractedData['amount'] ?? 0.0;
 
       setState(() {
         _companyController.text = _extractedCompany;
-        _amountController.text = _extractedAmount.toStringAsFixed(2);
         _isProcessing = false;
       });
     } catch (e) {
@@ -75,9 +71,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       // Fallback to default values
       setState(() {
         _extractedCompany = 'Unknown Business';
-        _extractedAmount = 0.0;
         _companyController.text = _extractedCompany;
-        _amountController.text = _extractedAmount.toStringAsFixed(2);
         _isProcessing = false;
       });
     }
@@ -95,7 +89,6 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
         CreateReceipt(
           imagePath: widget.imagePath,
           merchantName: _companyController.text,
-          amount: double.tryParse(_amountController.text) ?? 0.0,
           date: DateTime.now(),
           notes: _notesController.text.isEmpty ? null : _notesController.text,
         ),
@@ -172,7 +165,6 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       CreateReceipt(
         imagePath: widget.imagePath,
         merchantName: _companyController.text,
-        amount: double.tryParse(_amountController.text) ?? 0.0,
         date: DateTime.now(),
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       ),
@@ -276,7 +268,7 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                   ),
                 ),
               ] else ...[
-                // Company Name Field
+                // Company Name Field (Read-only, extracted from receipt)
                 Text(
                   'Company Name',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -286,52 +278,21 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _companyController,
+                  readOnly: true,
                   decoration: InputDecoration(
-                    hintText: 'Enter company name',
+                    hintText: 'Extracted from receipt',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     prefixIcon: const Icon(Icons.business),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter company name';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // Amount Field
-                Text(
-                  'Amount',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _amountController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter amount',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    fillColor: Colors.grey.shade50,
+                    filled: true,
+                    suffixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.grey,
+                      size: 20,
                     ),
-                    prefixIcon: const Icon(Icons.attach_money),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter amount';
-                    }
-                    if (double.tryParse(value) == null) {
-                      return 'Please enter a valid amount';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: 16),
@@ -385,7 +346,6 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
   @override
   void dispose() {
     _companyController.dispose();
-    _amountController.dispose();
     _notesController.dispose();
     super.dispose();
   }

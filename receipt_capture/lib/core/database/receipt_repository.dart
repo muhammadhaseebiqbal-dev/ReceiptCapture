@@ -81,6 +81,7 @@ class ReceiptRepository {
     try {
       final List<Map<String, dynamic>> maps = await db.query(
         DatabaseHelper.tableReceipts,
+        where: '${DatabaseHelper.columnDeletedAt} IS NULL',
         orderBy:
             '${orderBy ?? DatabaseHelper.columnCreatedAt} ${descending ? 'DESC' : 'ASC'}',
         limit: limit,
@@ -104,9 +105,11 @@ class ReceiptRepository {
         DatabaseHelper.tableReceipts,
         where:
             '''
-          ${DatabaseHelper.columnMerchantName} LIKE ? OR
-          ${DatabaseHelper.columnCategory} LIKE ? OR
-          ${DatabaseHelper.columnNotes} LIKE ?
+          ${DatabaseHelper.columnDeletedAt} IS NULL AND (
+            ${DatabaseHelper.columnMerchantName} LIKE ? OR
+            ${DatabaseHelper.columnCategory} LIKE ? OR
+            ${DatabaseHelper.columnNotes} LIKE ?
+          )
         ''',
         whereArgs: ['%$query%', '%$query%', '%$query%'],
         orderBy: '${DatabaseHelper.columnCreatedAt} DESC',
@@ -183,7 +186,7 @@ class ReceiptRepository {
           // Mark as deleted but don't actually delete
           await txn.update(
             DatabaseHelper.tableReceipts,
-            {'deleted_at': DateTime.now().toIso8601String()},
+            {DatabaseHelper.columnDeletedAt: DateTime.now().toIso8601String()},
             where: '${DatabaseHelper.columnId} = ?',
             whereArgs: [id],
           );

@@ -28,9 +28,9 @@ class ReceiptCaptureApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Receipt Capture',
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.darkTheme,
         darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.dark,
         debugShowCheckedModeBanner: false,
         home: const HomeScreen(),
       ),
