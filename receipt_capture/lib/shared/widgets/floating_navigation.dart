@@ -112,10 +112,8 @@ class _FloatingNavigationState extends State<FloatingNavigation>
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      bottom: 30,
-      left: 20,
-      right: 20,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 30, left: 20, right: 20),
       child: AnimatedBuilder(
         animation: Listenable.merge([_scaleAnimation, _bounceAnimation]),
         builder: (context, child) {
