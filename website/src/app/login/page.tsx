@@ -131,19 +131,30 @@ export default function LoginPage() {
           </CardContent>
         </form>
 
-        <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-muted-foreground text-center">
-            Demo Credentials:
+        <CardFooter className="flex flex-col space-y-4">
+          {/* Registration CTA */}
+          <div className="w-full">
+            <div className="text-center mb-3">
+              <span className="text-sm text-muted-foreground">Don't have a company account?</span>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => router.push('/register')}
+            >
+              Register Your Company
+            </Button>
           </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <div><strong>Master Admin:</strong> admin@receiptcapture.com / admin123</div>
-            <div><strong>Company Rep:</strong> rep@techcorp.com / password123</div>
-          </div>
-          <div className="text-sm text-center">
-            <span className="text-muted-foreground">Need an account? </span>
-            <Link href="/signup" className="text-primary hover:underline">
-              Contact us for setup
-            </Link>
+
+          {/* Demo Credentials */}
+          <div className="border-t pt-4">
+            <div className="text-sm text-muted-foreground text-center mb-2">
+              Demo Credentials (for testing):
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><strong>Master Admin:</strong> admin@receiptcapture.com / admin123</div>
+              <div><strong>Company Rep:</strong> rep@techcorp.com / password123</div>
+            </div>
           </div>
         </CardFooter>
       </Card>
