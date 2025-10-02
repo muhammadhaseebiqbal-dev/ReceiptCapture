@@ -181,28 +181,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Company Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Company Settings</CardTitle>
-              <CardDescription>Manage your company configuration</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Destination Email</label>
-                <div className="flex items-center mt-1">
-                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-900">{data.company?.destinationEmail}</span>
-                </div>
-              </div>
-              <Button className="w-full" onClick={() => router.push('/dashboard/settings')}>
-                <Settings className="h-4 w-4 mr-2" />
-                Update Settings
-              </Button>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Staff Management */}
           <Card>
             <CardHeader>
@@ -211,7 +190,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                {data.appUsers.slice(0, 3).map((user) => (
+                {data.appUsers.slice(0, 2).map((user) => (
                   <div key={user.id} className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">{user.name}</p>
@@ -230,6 +209,63 @@ export default function DashboardPage() {
               <Button className="w-full" onClick={() => router.push('/dashboard/staff')}>
                 <Users className="h-4 w-4 mr-2" />
                 Manage Staff
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Receipt Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Receipt Management</CardTitle>
+              <CardDescription>View and process receipts</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600">{data.receiptsCount}</div>
+                <div className="text-sm text-muted-foreground">Total Receipts</div>
+              </div>
+              <Button className="w-full" onClick={() => router.push('/dashboard/receipts')}>
+                <Receipt className="h-4 w-4 mr-2" />
+                View Receipts
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Subscription Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Subscription</CardTitle>
+              <CardDescription>Manage your plan and billing</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-lg font-semibold">Professional</div>
+                <div className="text-sm text-muted-foreground">Current Plan</div>
+              </div>
+              <Button className="w-full" onClick={() => router.push('/dashboard/subscription')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Manage Plan
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Company Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Company Settings</CardTitle>
+              <CardDescription>Manage company configuration</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Destination Email</label>
+                <div className="flex items-center mt-1">
+                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                  <span className="text-sm text-gray-900">{data.company?.destinationEmail}</span>
+                </div>
+              </div>
+              <Button className="w-full" onClick={() => router.push('/dashboard/settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Update Settings
               </Button>
             </CardContent>
           </Card>

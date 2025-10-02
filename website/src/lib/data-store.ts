@@ -115,6 +115,75 @@ class DataStore {
         createdAt: new Date().toISOString(),
       },
     ];
+
+    // Sample receipts
+    this.receipts = [
+      {
+        id: 'receipt-1',
+        userId: 'app-user-1',
+        companyId: 'company-1',
+        imagePath: '/uploads/receipt-1.jpg',
+        merchantName: 'Office Depot',
+        amount: 45.99,
+        receiptDate: '2025-09-25T10:30:00Z',
+        category: 'Office Supplies',
+        notes: 'Printer paper and pens',
+        status: 'sent',
+        emailSentAt: '2025-09-25T11:00:00Z',
+        createdAt: '2025-09-25T10:45:00Z',
+      },
+      {
+        id: 'receipt-2',
+        userId: 'app-user-2',
+        companyId: 'company-1',
+        imagePath: '/uploads/receipt-2.jpg',
+        merchantName: 'Starbucks',
+        amount: 12.50,
+        receiptDate: '2025-09-28T08:15:00Z',
+        category: 'Meals & Entertainment',
+        notes: 'Client meeting coffee',
+        status: 'processed',
+        createdAt: '2025-09-28T08:20:00Z',
+      },
+      {
+        id: 'receipt-3',
+        userId: 'app-user-1',
+        companyId: 'company-1',
+        imagePath: '/uploads/receipt-3.jpg',
+        merchantName: 'Shell Gas Station',
+        amount: 67.88,
+        receiptDate: '2025-10-01T14:22:00Z',
+        category: 'Travel & Transportation',
+        notes: 'Business trip fuel',
+        status: 'pending',
+        createdAt: '2025-10-01T14:25:00Z',
+      },
+      {
+        id: 'receipt-4',
+        userId: 'app-user-2',
+        companyId: 'company-1',
+        imagePath: '/uploads/receipt-4.jpg',
+        merchantName: 'Best Buy',
+        amount: 299.99,
+        receiptDate: '2025-10-02T11:45:00Z',
+        category: 'Equipment',
+        notes: 'Wireless mouse and keyboard',
+        status: 'pending',
+        createdAt: '2025-10-02T12:00:00Z',
+      },
+      {
+        id: 'receipt-5',
+        userId: 'app-user-1',
+        companyId: 'company-1',
+        imagePath: '/uploads/receipt-5.jpg',
+        merchantName: 'Amazon Business',
+        amount: 89.95,
+        receiptDate: '2025-10-02T16:30:00Z',
+        category: 'Office Supplies',
+        status: 'processed',
+        createdAt: '2025-10-02T16:35:00Z',
+      },
+    ];
   }
 
   // Users methods
@@ -164,6 +233,30 @@ class DataStore {
   getReceipts() { return [...this.receipts]; }
   getReceiptsByCompany(companyId: string) {
     return this.receipts.filter(r => r.companyId === companyId);
+  }
+  updateReceipt(id: string, updates: Partial<Receipt>) {
+    const index = this.receipts.findIndex(r => r.id === id);
+    if (index !== -1) {
+      this.receipts[index] = { ...this.receipts[index], ...updates };
+      return this.receipts[index];
+    }
+    return null;
+  }
+
+  // Individual getter methods
+  getUser(id: string) { return this.users.find(u => u.id === id); }
+  getCompany(id: string) { return this.companies.find(c => c.id === id); }
+  getSubscriptionPlan(id: string) { return this.subscriptionPlans.find(p => p.id === id); }
+
+  // Billing history (in-memory for now)
+  private billingHistory: any[] = [];
+  
+  getBillingHistory(companyId: string) {
+    return this.billingHistory.filter(b => b.companyId === companyId);
+  }
+  
+  addBillingHistory(entry: any) {
+    this.billingHistory.push(entry);
   }
 }
 

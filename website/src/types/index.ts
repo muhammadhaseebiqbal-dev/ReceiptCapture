@@ -20,6 +20,7 @@ export interface Company {
   subscriptionStartDate?: string;
   subscriptionEndDate?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface SubscriptionPlan {
@@ -32,6 +33,11 @@ export interface SubscriptionPlan {
   maxReceiptsPerMonth: number;
   features: string[];
   isActive: boolean;
+  limits?: {
+    maxUsers: number;
+    maxReceipts: number;
+    maxStorage: number;
+  };
 }
 
 export interface AppUser {
@@ -58,5 +64,19 @@ export interface Receipt {
   notes?: string;
   status: 'pending' | 'processed' | 'sent';
   emailSentAt?: string;
+  createdAt: string;
+}
+
+export interface BillingHistory {
+  id: string;
+  companyId: string;
+  planId: string;
+  planName: string;
+  amount: number;
+  billingCycle: 'monthly' | 'annual';
+  status: 'paid' | 'pending' | 'failed';
+  billingDate: string;
+  nextBillingDate: string;
+  description: string;
   createdAt: string;
 }

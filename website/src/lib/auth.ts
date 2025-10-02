@@ -39,3 +39,8 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
+
+// Export verifyToken as a standalone function for API routes
+export function verifyToken(token: string): { userId: string; email: string; role: string } | null {
+  return authService.validateToken(token);
+}
