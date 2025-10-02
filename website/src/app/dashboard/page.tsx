@@ -227,7 +227,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => router.push('/dashboard/staff')}>
                 <Users className="h-4 w-4 mr-2" />
                 Manage Staff
               </Button>
