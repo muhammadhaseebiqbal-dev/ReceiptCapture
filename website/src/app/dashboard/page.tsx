@@ -196,7 +196,7 @@ export default function DashboardPage() {
                   <span className="text-sm text-gray-900">{data.company?.destinationEmail}</span>
                 </div>
               </div>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => router.push('/dashboard/settings')}>
                 <Settings className="h-4 w-4 mr-2" />
                 Update Settings
               </Button>
