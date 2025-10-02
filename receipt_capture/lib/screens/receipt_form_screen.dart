@@ -4,6 +4,7 @@ import 'dart:io';
 import '../features/receipt/bloc/receipt_bloc.dart';
 import '../features/receipt/bloc/receipt_event.dart';
 import '../features/receipt/bloc/receipt_state.dart';
+import '../core/database/models.dart';
 import '../shared/theme/app_theme.dart';
 import '../shared/widgets/loading_indicator.dart';
 import 'simple_crop_screen.dart';
@@ -12,12 +13,14 @@ class ReceiptFormScreen extends StatefulWidget {
   final String imagePath;
   final String? croppedImagePath;
   final bool isEditing;
+  final Receipt? existingReceipt;
 
   const ReceiptFormScreen({
     super.key,
     required this.imagePath,
     this.croppedImagePath,
     this.isEditing = false,
+    this.existingReceipt,
   });
 
   @override
@@ -51,6 +54,15 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
   void initState() {
     super.initState();
     _currentImagePath = widget.croppedImagePath ?? widget.imagePath;
+    
+    // Pre-fill form if editing existing receipt
+    if (widget.isEditing && widget.existingReceipt != null) {
+      final receipt = widget.existingReceipt!;
+      _merchantController.text = receipt.merchantName ?? '';
+      _notesController.text = receipt.notes ?? '';
+      _selectedCategory = receipt.category;
+      _selectedDate = receipt.date ?? DateTime.now();
+    }
   }
 
   @override
@@ -121,18 +133,35 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
         ? null
         : _notesController.text.trim();
 
-    context.read<ReceiptBloc>().add(
-      CreateReceipt(
-        imagePath: widget.imagePath,
+    if (widget.isEditing && widget.existingReceipt != null) {
+      // Update existing receipt
+      final updatedReceipt = widget.existingReceipt!.copyWith(
         croppedImagePath: _currentImagePath != widget.imagePath
             ? _currentImagePath
-            : null,
+            : widget.existingReceipt!.croppedImagePath,
         merchantName: merchantName,
         date: _selectedDate,
         category: _selectedCategory,
         notes: notes,
-      ),
-    );
+        updatedAt: DateTime.now(),
+      );
+      
+      context.read<ReceiptBloc>().add(UpdateReceipt(updatedReceipt));
+    } else {
+      // Create new receipt
+      context.read<ReceiptBloc>().add(
+        CreateReceipt(
+          imagePath: widget.imagePath,
+          croppedImagePath: _currentImagePath != widget.imagePath
+              ? _currentImagePath
+              : null,
+          merchantName: merchantName,
+          date: _selectedDate,
+          category: _selectedCategory,
+          notes: notes,
+        ),
+      );
+    }
   }
 
   @override
@@ -155,8 +184,8 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
       ),
       body: BlocListener<ReceiptBloc, ReceiptState>(
         listener: (context, state) {
-          if (state.status == ReceiptStatus.success && !widget.isEditing) {
-            // Receipt saved successfully, go back
+          if (state.status == ReceiptStatus.success) {
+            // Receipt saved/updated successfully, go back
             Navigator.of(context).pop();
           } else if (state.status == ReceiptStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -278,15 +307,21 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Merchant name
+        // Receipt name/title (using merchant name field)
         TextFormField(
           controller: _merchantController,
           decoration: const InputDecoration(
-            labelText: 'Merchant Name',
-            hintText: 'e.g., Walmart, Target, etc.',
-            prefixIcon: Icon(Icons.store),
+            labelText: 'Receipt Name',
+            hintText: 'e.g., Walmart, Office Supplies, Lunch, etc.',
+            prefixIcon: Icon(Icons.receipt_long),
           ),
           textCapitalization: TextCapitalization.words,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Please enter a name for this receipt';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: AppTheme.spacingM),
 

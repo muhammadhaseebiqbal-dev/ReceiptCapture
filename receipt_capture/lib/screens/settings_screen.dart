@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../shared/theme/app_theme.dart';
 import '../features/auth/bloc/auth_bloc.dart';
 import '../features/auth/bloc/auth_event.dart';
@@ -8,10 +9,41 @@ import '../features/theme/bloc/theme_bloc.dart';
 import '../features/theme/bloc/theme_event.dart';
 import '../features/theme/bloc/theme_state.dart';
 import '../core/models/user.dart';
+import '../core/services/sync_service.dart';
+import '../core/database/receipt_repository.dart';
+import 'simple_sync_settings_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  SyncService? _syncService;
+  int _pendingSyncCount = 0;
+  
+  @override
+  void initState() {
+    super.initState();
+    _initializeSyncService();
+  }
+  
+  Future<void> _initializeSyncService() async {
+    final prefs = await SharedPreferences.getInstance();
+    final receiptRepository = RepositoryProvider.of<ReceiptRepository>(context);
+    _syncService = SyncService(receiptRepository, prefs);
+    
+    // Load pending sync count
+    final count = await _syncService!.getPendingSyncCount();
+    if (mounted) {
+      setState(() {
+        _pendingSyncCount = count;
+      });
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,14 +63,7 @@ class SettingsScreen extends StatelessWidget {
           _buildSettingsSection(
             title: 'Receipt Management',
             children: [
-              _buildSettingsTile(
-                icon: Icons.cloud_sync_outlined,
-                title: 'Sync Settings',
-                subtitle: 'Configure automatic synchronization',
-                onTap: () {
-                  // TODO: Implement sync settings
-                },
-              ),
+              _buildSyncSettingsTile(),
               _buildSettingsTile(
                 icon: Icons.security_outlined,
                 title: 'Data Encryption',
@@ -450,6 +475,65 @@ class SettingsScreen extends StatelessWidget {
       ),
       trailing: const Icon(Icons.chevron_right),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildSyncSettingsTile() {
+    String subtitle = 'Configure automatic synchronization';
+    if (_pendingSyncCount > 0) {
+      subtitle = '$_pendingSyncCount receipts pending sync';
+    }
+    
+    return ListTile(
+      leading: Icon(Icons.cloud_sync_outlined, color: AppTheme.primaryColor),
+      title: Text('Sync Settings', style: AppTheme.titleMedium),
+      subtitle: Text(
+        subtitle,
+        style: AppTheme.bodySmall.copyWith(
+          color: _pendingSyncCount > 0 ? AppTheme.warningColor : Colors.grey[600],
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_pendingSyncCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.warningColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$_pendingSyncCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const SimpleSyncSettingsScreen(),
+          ),
+        );
+        
+        // Refresh sync count when returning from sync settings
+        if (result == true && _syncService != null) {
+          final count = await _syncService!.getPendingSyncCount();
+          if (mounted) {
+            setState(() {
+              _pendingSyncCount = count;
+            });
+          }
+        }
+      },
     );
   }
 

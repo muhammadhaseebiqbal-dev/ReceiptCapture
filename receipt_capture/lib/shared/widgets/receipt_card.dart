@@ -8,12 +8,14 @@ class ReceiptCard extends StatelessWidget {
   final Receipt receipt;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const ReceiptCard({
     super.key,
     required this.receipt,
     this.onTap,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -80,11 +82,11 @@ class ReceiptCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Company name with modern typography
+                          // Receipt name with modern typography
                           Text(
                             receipt.merchantName?.isNotEmpty == true 
                                 ? receipt.merchantName! 
-                                : 'Unknown Company',
+                                : 'Unnamed Receipt',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               letterSpacing: -0.2,
@@ -170,6 +172,20 @@ class ReceiptCard extends StatelessWidget {
                             ),
                             itemBuilder: (context) => [
                               PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.edit_rounded,
+                                      size: 18,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
                                 value: 'delete',
                                 child: Row(
                                   children: [
@@ -185,7 +201,9 @@ class ReceiptCard extends StatelessWidget {
                               ),
                             ],
                             onSelected: (value) {
-                              if (value == 'delete') {
+                              if (value == 'edit') {
+                                onEdit?.call();
+                              } else if (value == 'delete') {
                                 onDelete?.call();
                               }
                             },

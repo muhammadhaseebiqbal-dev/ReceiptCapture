@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../features/receipt/bloc/receipt_bloc.dart';
 import '../features/receipt/bloc/receipt_event.dart';
 import '../features/receipt/bloc/receipt_state.dart';
+import '../core/database/models.dart';
 import '../shared/theme/app_theme.dart';
 import '../shared/widgets/receipt_card.dart';
 import '../shared/widgets/empty_state.dart';
+import 'receipt_form_screen.dart';
 import '../shared/widgets/loading_indicator.dart';
 
 class ReceiptListScreen extends StatefulWidget {
@@ -207,8 +209,11 @@ class _ReceiptListScreenState extends State<ReceiptListScreen> {
                           child: ReceiptCard(
                             receipt: receipt,
                             onTap: () {
-                              // Navigate to receipt details
-                              // TODO: Implement receipt details screen
+                              // Navigate to receipt details view (read-only)
+                              _viewReceiptDetails(context, receipt);
+                            },
+                            onEdit: () {
+                              _editReceipt(context, receipt);
                             },
                             onDelete: () {
                               _showDeleteConfirmation(context, receipt.id);
@@ -225,6 +230,26 @@ class _ReceiptListScreenState extends State<ReceiptListScreen> {
         ),
       ),
     );
+  }
+
+  void _editReceipt(BuildContext context, Receipt receipt) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ReceiptFormScreen(
+          imagePath: receipt.imagePath,
+          croppedImagePath: receipt.croppedImagePath,
+          isEditing: true,
+          existingReceipt: receipt,
+        ),
+      ),
+    );
+  }
+
+  void _viewReceiptDetails(BuildContext context, Receipt receipt) {
+    // For now, just navigate to edit mode for viewing
+    // Later you can create a dedicated details/view screen
+    _editReceipt(context, receipt);
   }
 
   Future<void> _showDeleteConfirmation(
