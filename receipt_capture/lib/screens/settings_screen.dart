@@ -11,7 +11,7 @@ import '../features/theme/bloc/theme_state.dart';
 import '../core/models/user.dart';
 import '../core/services/sync_service.dart';
 import '../core/database/receipt_repository.dart';
-import 'simple_sync_settings_screen.dart';
+import 'sync_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -520,7 +520,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const SimpleSyncSettingsScreen(),
+            builder: (context) => const SyncSettingsScreen(),
           ),
         );
         

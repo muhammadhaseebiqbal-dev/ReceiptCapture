@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../core/services/sync_service.dart';
@@ -30,29 +29,35 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     _initializeSyncService();
   }
   
+  @override
+  void dispose() {
+    _syncService = null;
+    super.dispose();
+  }
+  
   Future<void> _initializeSyncService() async {
+    if (!mounted) return;
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      // Try to get repository from context, if not available use singleton instance
-      ReceiptRepository receiptRepository;
-      try {
-        receiptRepository = RepositoryProvider.of<ReceiptRepository>(context);
-      } catch (e) {
-        // If RepositoryProvider is not available, use singleton instance
-        receiptRepository = ReceiptRepository.instance;
-      }
+      // Always use singleton instance for consistency
+      final receiptRepository = ReceiptRepository.instance;
       
       _syncService = SyncService(receiptRepository, prefs);
       
       await _loadSettings();
     } catch (e) {
-      print('Error initializing sync service: $e');
+      debugPrint('Error initializing sync service: $e');
       // Set default values if initialization fails
-      _currentSyncMode = SyncMode.manual;
-      _autoSyncInterval = 30;
-      _lastSyncTime = null;
-      _pendingSyncCount = 0;
+      if (mounted) {
+        setState(() {
+          _currentSyncMode = SyncMode.manual;
+          _autoSyncInterval = 30;
+          _lastSyncTime = null;
+          _pendingSyncCount = 0;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -63,48 +68,97 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
   }
   
   Future<void> _loadSettings() async {
+    if (_syncService == null || !mounted) return;
+    
     try {
-      _currentSyncMode = _syncService!.getSyncMode();
-      _autoSyncInterval = _syncService!.getAutoSyncInterval();
-      _lastSyncTime = _syncService!.getLastSyncTime();
-      _pendingSyncCount = await _syncService!.getPendingSyncCount();
+      final syncMode = _syncService!.getSyncMode();
+      final autoSyncInterval = _syncService!.getAutoSyncInterval();
+      final lastSyncTime = _syncService!.getLastSyncTime();
+      final pendingSyncCount = await _syncService!.getPendingSyncCount();
+      
+      if (mounted) {
+        setState(() {
+          _currentSyncMode = syncMode;
+          _autoSyncInterval = autoSyncInterval;
+          _lastSyncTime = lastSyncTime;
+          _pendingSyncCount = pendingSyncCount;
+        });
+      }
     } catch (e) {
-      print('Error loading sync settings: $e');
+      debugPrint('Error loading sync settings: $e');
       // Set safe defaults
-      _currentSyncMode = SyncMode.manual;
-      _autoSyncInterval = 30;
-      _lastSyncTime = null;
-      _pendingSyncCount = 0;
+      if (mounted) {
+        setState(() {
+          _currentSyncMode = SyncMode.manual;
+          _autoSyncInterval = 30;
+          _lastSyncTime = null;
+          _pendingSyncCount = 0;
+        });
+      }
     }
   }
   
   Future<void> _updateSyncMode(SyncMode mode) async {
-    if (_syncService == null) return;
+    if (_syncService == null || !mounted) return;
     
-    await _syncService!.setSyncMode(mode);
-    setState(() {
-      _currentSyncMode = mode;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sync mode changed to ${mode.name}'),
-        backgroundColor: AppTheme.successColor,
-      ),
-    );
+    try {
+      await _syncService!.setSyncMode(mode);
+      if (mounted) {
+        setState(() {
+          _currentSyncMode = mode;
+        });
+        
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Sync mode changed to ${mode.name}'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to update sync mode: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
   
   Future<void> _updateAutoSyncInterval(int minutes) async {
-    if (_syncService == null) return;
+    if (_syncService == null || !mounted) return;
     
-    await _syncService!.setAutoSyncInterval(minutes);
-    setState(() {
-      _autoSyncInterval = minutes;
-    });
+    try {
+      await _syncService!.setAutoSyncInterval(minutes);
+      if (mounted) {
+        setState(() {
+          _autoSyncInterval = minutes;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error updating auto sync interval: $e');
+      if (mounted) {
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to update sync interval: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
   
   Future<void> _performSync() async {
-    if (_syncService == null) return;
+    if (_syncService == null || !mounted) return;
+    
+    // Store context references before async operations
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     
     setState(() {
       _isSyncing = true;
@@ -113,35 +167,46 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     try {
       final result = await _syncService!.syncNow();
       
-      // Refresh pending count
-      _pendingSyncCount = await _syncService!.getPendingSyncCount();
-      _lastSyncTime = _syncService!.getLastSyncTime();
-      
-      // Show result
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: result.success ? AppTheme.successColor : AppTheme.errorColor,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-      
-      // Return true to indicate sync was performed
-      if (result.syncedCount > 0) {
-        Navigator.pop(context, true);
+      if (mounted) {
+        // Refresh pending count and last sync time
+        final pendingSyncCount = await _syncService!.getPendingSyncCount();
+        final lastSyncTime = _syncService!.getLastSyncTime();
+        
+        setState(() {
+          _pendingSyncCount = pendingSyncCount;
+          _lastSyncTime = lastSyncTime;
+        });
+        
+        // Show result
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(result.message),
+            backgroundColor: result.success ? AppTheme.successColor : AppTheme.errorColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        
+        // Return true to indicate sync was performed
+        if (result.syncedCount > 0) {
+          navigator.pop(true);
+        }
       }
       
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sync failed: $e'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isSyncing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
     }
   }
   
@@ -220,7 +285,7 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _pendingSyncCount > 0 ? AppTheme.warningColor.withOpacity(0.1) : AppTheme.successColor.withOpacity(0.1),
+                    color: _pendingSyncCount > 0 ? AppTheme.warningColor.withValues(alpha: 0.1) : AppTheme.successColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _pendingSyncCount > 0 ? AppTheme.warningColor : AppTheme.successColor,
@@ -273,24 +338,41 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
             ),
             const SizedBox(height: AppTheme.spacingM),
             
-            RadioListTile<SyncMode>(
-              title: const Text('Manual Sync'),
-              subtitle: const Text('Sync receipts only when you tap the sync button'),
-              value: SyncMode.manual,
-              groupValue: _currentSyncMode,
-              onChanged: (value) {
-                if (value != null) _updateSyncMode(value);
-              },
-            ),
-            
-            RadioListTile<SyncMode>(
-              title: const Text('Automatic Sync'),
-              subtitle: const Text('Automatically sync receipts at regular intervals'),
-              value: SyncMode.automatic,
-              groupValue: _currentSyncMode,
-              onChanged: (value) {
-                if (value != null) _updateSyncMode(value);
-              },
+            Theme(
+              data: Theme.of(context).copyWith(
+                radioTheme: RadioThemeData(
+                  fillColor: WidgetStateProperty.all(AppTheme.primaryColor),
+                ),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Radio<SyncMode>(
+                      value: SyncMode.manual,
+                      groupValue: _currentSyncMode,
+                      onChanged: (value) {
+                        if (value != null) _updateSyncMode(value);
+                      },
+                    ),
+                    title: const Text('Manual Sync'),
+                    subtitle: const Text('Sync receipts only when you tap the sync button'),
+                    onTap: () => _updateSyncMode(SyncMode.manual),
+                  ),
+                  
+                  ListTile(
+                    leading: Radio<SyncMode>(
+                      value: SyncMode.automatic,
+                      groupValue: _currentSyncMode,
+                      onChanged: (value) {
+                        if (value != null) _updateSyncMode(value);
+                      },
+                    ),
+                    title: const Text('Automatic Sync'),
+                    subtitle: const Text('Automatically sync receipts at regular intervals'),
+                    onTap: () => _updateSyncMode(SyncMode.automatic),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
