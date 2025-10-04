@@ -35,7 +35,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _cameraController?.dispose();
+    _disposeCamera();
     super.dispose();
   }
 
@@ -47,16 +47,31 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     if (state == AppLifecycleState.inactive) {
-      controller.dispose();
+      _disposeCamera();
     } else if (state == AppLifecycleState.resumed) {
       _initializeCamera();
     }
   }
 
+  void _disposeCamera() {
+    if (_cameraController != null) {
+      _cameraController!.dispose();
+      _cameraController = null;
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+        });
+      }
+    }
+  }
+
   Future<void> _initializeCamera() async {
     try {
+      // Dispose existing controller if any
+      _disposeCamera();
+      
       final cameras = await availableCameras();
-      if (cameras.isNotEmpty) {
+      if (cameras.isNotEmpty && mounted) {
         _cameraController = CameraController(
           cameras.first,
           ResolutionPreset.high,

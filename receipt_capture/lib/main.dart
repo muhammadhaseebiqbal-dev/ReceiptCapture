@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/services/camera_service.dart';
 import 'core/services/auth_service.dart';
+import 'core/database/receipt_repository.dart';
 import 'features/receipt/bloc/receipt_bloc.dart';
 import 'features/receipt/bloc/receipt_event.dart';
 import 'features/auth/bloc/auth_bloc.dart';
@@ -28,19 +29,25 @@ class ReceiptCaptureApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider<ThemeBloc>(
-          create: (context) => ThemeBloc()..add(ThemeInitialize()),
-        ),
-        BlocProvider<AuthBloc>(
-          create: (context) => AuthBloc(authService: AuthService())..add(AuthInitialize()),
-        ),
-        BlocProvider<ReceiptBloc>(
-          create: (context) => ReceiptBloc()..add(const LoadReceipts()),
+        RepositoryProvider<ReceiptRepository>(
+          create: (context) => ReceiptRepository.instance,
         ),
       ],
-      child: BlocBuilder<ThemeBloc, ThemeState>(
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<ThemeBloc>(
+            create: (context) => ThemeBloc()..add(ThemeInitialize()),
+          ),
+          BlocProvider<AuthBloc>(
+            create: (context) => AuthBloc(authService: AuthService())..add(AuthInitialize()),
+          ),
+          BlocProvider<ReceiptBloc>(
+            create: (context) => ReceiptBloc()..add(const LoadReceipts()),
+          ),
+        ],
+        child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
           return MaterialApp(
             title: 'Receipt Capture',
@@ -51,6 +58,7 @@ class ReceiptCaptureApp extends StatelessWidget {
             home: const AuthWrapper(),
           );
         },
+        ),
       ),
     );
   }

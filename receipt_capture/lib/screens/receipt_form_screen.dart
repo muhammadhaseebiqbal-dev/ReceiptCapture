@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import '../features/receipt/bloc/receipt_bloc.dart';
 import '../features/receipt/bloc/receipt_event.dart';
 import '../features/receipt/bloc/receipt_state.dart';
 import '../core/database/models.dart';
 import '../shared/theme/app_theme.dart';
 import '../shared/widgets/loading_indicator.dart';
+import '../core/utils/pdf_utils.dart';
 import 'simple_crop_screen.dart';
 
 class ReceiptFormScreen extends StatefulWidget {
@@ -62,6 +64,9 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
       _notesController.text = receipt.notes ?? '';
       _selectedCategory = receipt.category;
       _selectedDate = receipt.date ?? DateTime.now();
+    } else {
+      // For new receipts, auto-generate name with date-time format
+      _generateReceiptName();
     }
   }
 
@@ -71,6 +76,14 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
 
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _generateReceiptName() {
+    // Generate receipt name with same format as PDF: DD-MM-YYYY_HH:MM
+    final now = DateTime.now();
+    final dateFormatter = DateFormat('dd-MM-yyyy_HH:mm');
+    final receiptName = dateFormatter.format(now);
+    _merchantController.text = receiptName;
   }
 
   Future<void> _cropImage() async {
@@ -185,6 +198,28 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
       body: BlocListener<ReceiptBloc, ReceiptState>(
         listener: (context, state) {
           if (state.status == ReceiptStatus.success) {
+            // Show PDF generation status if available
+            if (state.pdfGenerationStatus != null) {
+              if (state.pdfGenerationStatus!.contains('successfully')) {
+                // PDF generated successfully - show success message
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Receipt saved and PDF generated! 📄'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              } else if (state.pdfGenerationStatus!.contains('failed')) {
+                // PDF generation failed - show warning
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Receipt saved but PDF generation failed: ${state.pdfGenerationStatus}'),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            }
             // Receipt saved/updated successfully, go back
             Navigator.of(context).pop();
           } else if (state.status == ReceiptStatus.failure) {
@@ -200,6 +235,16 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
               _currentImagePath = state.croppedImagePath;
               _isCropping = false;
             });
+          } else if (state.pdfGenerationStatus != null && 
+              state.pdfGenerationStatus!.contains('Generating')) {
+            // Show PDF generation progress
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.pdfGenerationStatus!),
+                backgroundColor: Colors.blue,
+                duration: const Duration(milliseconds: 1500),
+              ),
+            );
           }
         },
         child: BlocBuilder<ReceiptBloc, ReceiptState>(
@@ -310,18 +355,18 @@ class _ReceiptFormScreenState extends State<ReceiptFormScreen> {
         // Receipt name/title (using merchant name field)
         TextFormField(
           controller: _merchantController,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Receipt Name',
-            hintText: 'e.g., Walmart, Office Supplies, Lunch, etc.',
-            prefixIcon: Icon(Icons.receipt_long),
+            hintText: 'Auto-generated or enter custom name',
+            prefixIcon: const Icon(Icons.receipt_long),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Generate new date-time name',
+              onPressed: _generateReceiptName,
+            ),
           ),
           textCapitalization: TextCapitalization.words,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Please enter a name for this receipt';
-            }
-            return null;
-          },
+          // No validation required - allow empty names
         ),
         const SizedBox(height: AppTheme.spacingM),
 

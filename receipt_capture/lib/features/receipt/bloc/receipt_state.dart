@@ -13,6 +13,7 @@ class ReceiptState extends Equatable {
     this.errorMessage = '',
     this.capturedImagePath = '',
     this.croppedImagePath = '',
+    this.pdfGenerationStatus,
   });
 
   final ReceiptStatus status;
@@ -23,6 +24,7 @@ class ReceiptState extends Equatable {
   final String errorMessage;
   final String capturedImagePath;
   final String croppedImagePath;
+  final String? pdfGenerationStatus;
 
   ReceiptState copyWith({
     ReceiptStatus? status,
@@ -33,6 +35,7 @@ class ReceiptState extends Equatable {
     String? errorMessage,
     String? capturedImagePath,
     String? croppedImagePath,
+    String? pdfGenerationStatus,
   }) {
     return ReceiptState(
       status: status ?? this.status,
@@ -43,6 +46,7 @@ class ReceiptState extends Equatable {
       errorMessage: errorMessage ?? this.errorMessage,
       capturedImagePath: capturedImagePath ?? this.capturedImagePath,
       croppedImagePath: croppedImagePath ?? this.croppedImagePath,
+      pdfGenerationStatus: pdfGenerationStatus ?? this.pdfGenerationStatus,
     );
   }
 
@@ -56,5 +60,6 @@ class ReceiptState extends Equatable {
     errorMessage,
     capturedImagePath,
     croppedImagePath,
+    pdfGenerationStatus,
   ];
 }

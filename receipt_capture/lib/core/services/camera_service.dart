@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
+import 'pdf_service.dart';
 
 class CameraService {
   static final CameraService instance = CameraService._privateConstructor();
@@ -14,6 +16,7 @@ class CameraService {
   final ImagePicker _picker = ImagePicker();
   List<CameraDescription>? _cameras;
   CameraController? _controller;
+  final PdfService _pdfService = PdfService.instance;
 
   Future<void> initializeCameras() async {
     try {
@@ -94,6 +97,7 @@ class CameraService {
         await Directory(path.dirname(filePath)).create(recursive: true);
 
         await File(image.path).copy(filePath);
+        
         return filePath;
       }
       return null;
@@ -149,6 +153,23 @@ class CameraService {
     } catch (e) {
       print('Error deleting image: $e');
       return false;
+    }
+  }
+
+  /// Get access to PDF service for manual PDF generation
+  PdfService get pdfService => _pdfService;
+
+  /// Generate PDF from existing image path
+  Future<String?> generatePdfFromImage(String imagePath) async {
+    try {
+      debugPrint('=== CAMERA SERVICE: Starting PDF generation for: $imagePath');
+      final pdfPath = await _pdfService.convertImageToPdf(imagePath);
+      debugPrint('=== CAMERA SERVICE: PDF generation completed: $pdfPath');
+      return pdfPath;
+    } catch (e, stackTrace) {
+      debugPrint('=== CAMERA SERVICE: Error generating PDF from image: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return null;
     }
   }
 }

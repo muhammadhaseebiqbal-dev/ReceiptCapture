@@ -86,14 +86,11 @@ class OCRService {
       }
     }
 
-    // If no company detected from filename, use realistic pattern matching
+    // If no company detected from filename, don't guess randomly
     if (detectedCompany == null) {
-      // Simulate finding company name based on common receipt patterns
-      if (random.nextBool()) {
-        // Found a company name
-        detectedCompany = knownCompanies[random.nextInt(knownCompanies.length)];
-        detectedCompany = _formatCompanyName(detectedCompany);
-      }
+      // For mock OCR, return null instead of random company names
+      // This will let the UI show "Unnamed Receipt" instead of random companies
+      detectedCompany = null;
     }
 
     // Generate realistic amount based on company type
@@ -106,7 +103,7 @@ class OCRService {
 
     // Simulate additional extracted data
     return {
-      'company': detectedCompany,
+      'company': detectedCompany, // Will be null for unrecognized receipts
       'amount': detectedAmount,
       'confidence': random.nextDouble() * 0.3 + 0.7, // 70-100% confidence
       'date': DateTime.now().subtract(Duration(days: random.nextInt(30))),

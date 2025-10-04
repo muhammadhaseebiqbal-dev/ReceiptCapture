@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'receipt_capture.db';
-  static const _databaseVersion = 2;
+  static const _databaseVersion = 3;
 
   static const tableReceipts = 'receipts';
   static const tableSyncQueue = 'sync_queue';
@@ -25,6 +25,7 @@ class DatabaseHelper {
   static const columnUploadStatus = 'upload_status';
   static const columnEncryptedData = 'encrypted_data';
   static const columnDeletedAt = 'deleted_at';
+  static const columnPdfPath = 'pdf_path';
 
   // Sync queue table columns
   static const columnQueueId = 'queue_id';
@@ -49,12 +50,30 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     Directory documentsDirectory = await getApplicationDocumentsDirectory();
     String path = join(documentsDirectory.path, _databaseName);
-    return await openDatabase(
+    final db = await openDatabase(
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onConfigure: (db) async {
+        // Enable foreign key constraints only
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
     );
+    
+    // Apply performance optimizations after database is opened
+    try {
+      await db.rawQuery('PRAGMA journal_mode = WAL');
+      await db.rawQuery('PRAGMA synchronous = NORMAL');
+      await db.rawQuery('PRAGMA cache_size = 10000');
+      await db.rawQuery('PRAGMA temp_store = memory');
+      print('=== DATABASE: Performance optimizations applied successfully');
+    } catch (e) {
+      print('=== DATABASE: Could not apply all optimizations: $e');
+      // Continue anyway - basic functionality will still work
+    }
+    
+    return db;
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -73,7 +92,8 @@ class DatabaseHelper {
         $columnIsSynced INTEGER NOT NULL DEFAULT 0,
         $columnUploadStatus TEXT NOT NULL DEFAULT 'queued',
         $columnEncryptedData TEXT,
-        $columnDeletedAt TEXT
+        $columnDeletedAt TEXT,
+        $columnPdfPath TEXT
       )
     ''');
 
@@ -109,6 +129,12 @@ class DatabaseHelper {
       // Add deleted_at column for soft deletes
       await db.execute('''
         ALTER TABLE $tableReceipts ADD COLUMN $columnDeletedAt TEXT
+      ''');
+    }
+    if (oldVersion < 3) {
+      // Add pdf_path column for PDF generation
+      await db.execute('''
+        ALTER TABLE $tableReceipts ADD COLUMN $columnPdfPath TEXT
       ''');
     }
   }

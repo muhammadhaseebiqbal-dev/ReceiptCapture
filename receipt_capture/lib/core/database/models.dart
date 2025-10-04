@@ -27,6 +27,7 @@ class Receipt extends Equatable {
   final bool isSynced;
   final String uploadStatus; // 'queued', 'uploading', 'uploaded', 'failed'
   final String? encryptedData;
+  final String? pdfPath;
 
   const Receipt({
     required this.id,
@@ -42,6 +43,7 @@ class Receipt extends Equatable {
     this.isSynced = false,
     this.uploadStatus = 'queued',
     this.encryptedData,
+    this.pdfPath,
   });
 
   Receipt copyWith({
@@ -58,6 +60,7 @@ class Receipt extends Equatable {
     bool? isSynced,
     String? uploadStatus,
     String? encryptedData,
+    String? pdfPath,
   }) {
     return Receipt(
       id: id ?? this.id,
@@ -73,6 +76,7 @@ class Receipt extends Equatable {
       isSynced: isSynced ?? this.isSynced,
       uploadStatus: uploadStatus ?? this.uploadStatus,
       encryptedData: encryptedData ?? this.encryptedData,
+      pdfPath: pdfPath ?? this.pdfPath,
     );
   }
 
@@ -91,6 +95,7 @@ class Receipt extends Equatable {
       'is_synced': isSynced ? 1 : 0,
       'upload_status': uploadStatus,
       'encrypted_data': encryptedData,
+      'pdf_path': pdfPath,
     };
   }
 
@@ -109,6 +114,7 @@ class Receipt extends Equatable {
       isSynced: map['is_synced'] == 1,
       uploadStatus: map['upload_status'] ?? 'queued',
       encryptedData: map['encrypted_data'],
+      pdfPath: map['pdf_path'],
     );
   }
 
@@ -127,6 +133,7 @@ class Receipt extends Equatable {
     isSynced,
     uploadStatus,
     encryptedData,
+    pdfPath,
   ];
 }
 

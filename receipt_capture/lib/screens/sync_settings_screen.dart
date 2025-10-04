@@ -44,12 +44,17 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       // Always use singleton instance for consistency
       final receiptRepository = ReceiptRepository.instance;
       
+      // Initialize sync service - it should work without credentials for offline-first mode
       _syncService = SyncService(receiptRepository, prefs);
       
       await _loadSettings();
+      
+      debugPrint('=== SYNC SERVICE: Initialized successfully in offline-first mode');
     } catch (e) {
-      debugPrint('Error initializing sync service: $e');
-      // Set default values if initialization fails
+      debugPrint('=== SYNC SERVICE: Error initializing sync service: $e');
+      debugPrint('=== SYNC SERVICE: App will continue in offline-only mode');
+      
+      // Set default values if initialization fails - app still works offline
       if (mounted) {
         setState(() {
           _currentSyncMode = SyncMode.manual;
@@ -76,6 +81,8 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
       final lastSyncTime = _syncService!.getLastSyncTime();
       final pendingSyncCount = await _syncService!.getPendingSyncCount();
       
+      debugPrint('=== SYNC SETTINGS: Loaded - Mode: $syncMode, Interval: ${autoSyncInterval}min, Pending: $pendingSyncCount');
+      
       if (mounted) {
         setState(() {
           _currentSyncMode = syncMode;
@@ -85,8 +92,10 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading sync settings: $e');
-      // Set safe defaults
+      debugPrint('=== SYNC SETTINGS: Error loading settings: $e');
+      debugPrint('=== SYNC SETTINGS: Using safe defaults - app works offline');
+      
+      // Set safe defaults - app still fully functional offline
       if (mounted) {
         setState(() {
           _currentSyncMode = SyncMode.manual;
@@ -229,6 +238,10 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
         children: [
           // Sync Status Card
           _buildSyncStatusCard(),
+          const SizedBox(height: AppTheme.spacingL),
+          
+          // Offline Mode Info
+          _buildOfflineModeInfo(),
           const SizedBox(height: AppTheme.spacingL),
           
           // Sync Mode Settings
@@ -527,6 +540,59 @@ class _SyncSettingsScreenState extends State<SyncSettingsScreen> {
     );
   }
   
+  Widget _buildOfflineModeInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: Colors.blue,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Offline-First Mode',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'This app works fully offline! Your receipts are safely stored locally with PDF generation. All features work without internet connection or external credentials.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.blue[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '• Capture & store receipts locally\n'
+            '• Generate PDFs automatically\n'
+            '• Search & organize without internet\n'
+            '• Sync settings ready for future cloud integration',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Colors.blue[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

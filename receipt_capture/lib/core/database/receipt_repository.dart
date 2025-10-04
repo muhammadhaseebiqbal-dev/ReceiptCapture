@@ -166,40 +166,69 @@ class ReceiptRepository {
     final db = await _databaseHelper.database;
 
     try {
+      print('=== REPOSITORY DELETE: Starting transaction for receipt: $id');
+      
+      // First check if receipt exists to avoid unnecessary operations
+      final receipt = await getReceiptById(id);
+      if (receipt == null) {
+        print('=== REPOSITORY DELETE: Receipt not found: $id');
+        throw Exception('Receipt not found: $id');
+      }
+      
+      print('=== REPOSITORY DELETE: Receipt found, proceeding with deletion');
+      
       await db.transaction((txn) async {
-        // Add to sync queue for deletion
-        final syncQueueItem = SyncQueueItem(
-          queueId: _uuid.v4(),
-          receiptId: id,
-          operation: SyncOperation.delete,
-        );
-
-        await txn.insert(
-          DatabaseHelper.tableSyncQueue,
-          syncQueueItem.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-
+        print('=== REPOSITORY DELETE: Inside transaction');
+        
         // Soft delete or hard delete based on sync status
-        final receipt = await getReceiptById(id);
-        if (receipt != null && receipt.isSynced) {
+        if (receipt.isSynced) {
+          // For synced receipts: add to sync queue, then soft delete
+          final syncQueueItem = SyncQueueItem(
+            queueId: _uuid.v4(),
+            receiptId: id,
+            operation: SyncOperation.delete,
+          );
+
+          await txn.insert(
+            DatabaseHelper.tableSyncQueue,
+            syncQueueItem.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          print('=== REPOSITORY DELETE: Added to sync queue');
+
           // Mark as deleted but don't actually delete
-          await txn.update(
+          final updateResult = await txn.update(
             DatabaseHelper.tableReceipts,
             {DatabaseHelper.columnDeletedAt: DateTime.now().toIso8601String()},
             where: '${DatabaseHelper.columnId} = ?',
             whereArgs: [id],
           );
+          print('=== REPOSITORY DELETE: Soft delete completed, rows affected: $updateResult');
         } else {
-          // Hard delete if not synced
-          await txn.delete(
+          // For unsynced receipts: delete sync queue records first, then hard delete receipt
+          
+          // First, delete any existing sync queue entries for this receipt
+          final syncDeleteResult = await txn.delete(
+            DatabaseHelper.tableSyncQueue,
+            where: '${DatabaseHelper.columnReceiptId} = ?',
+            whereArgs: [id],
+          );
+          print('=== REPOSITORY DELETE: Deleted $syncDeleteResult sync queue records');
+          
+          // Now we can safely hard delete the receipt
+          final deleteResult = await txn.delete(
             DatabaseHelper.tableReceipts,
             where: '${DatabaseHelper.columnId} = ?',
             whereArgs: [id],
           );
+          print('=== REPOSITORY DELETE: Hard delete completed, rows affected: $deleteResult');
         }
-      });
-    } catch (e) {
+      }); // Transaction completed
+      
+      print('=== REPOSITORY DELETE: Transaction completed successfully');
+    } catch (e, stackTrace) {
+      print('=== REPOSITORY DELETE: Error: $e');
+      print('=== REPOSITORY DELETE: Stack trace: $stackTrace');
       throw Exception('Failed to delete receipt: $e');
     }
   }

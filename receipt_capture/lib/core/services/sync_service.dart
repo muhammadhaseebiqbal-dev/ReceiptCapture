@@ -147,7 +147,9 @@ class SyncService {
   
   /// Process individual sync item
   Future<void> _processSyncItem(SyncQueueItem item) async {
-    // Update status to processing
+    // For now, work in offline-first mode without external sync
+    // This simulates processing but keeps data local
+    print('=== SYNC SERVICE: Processing item ${item.queueId} in offline mode');
     final processingItem = item.copyWith(
       status: SyncStatus.processing,
       lastAttempt: DateTime.now(),
@@ -174,24 +176,20 @@ class SyncService {
   
   /// Simulate email sync (replace with actual implementation)
   Future<void> _simulateEmailSync(SyncQueueItem item) async {
-    // TODO: Replace this with actual email sending logic
-    // This is where you would:
+    // OFFLINE-FIRST MODE: No external email sending required
+    // This marks receipts as "synced" locally without external dependencies
+    // When you have email credentials, replace this with actual email logic:
     // 1. Get the receipt by ID
     // 2. Prepare email with receipt image and data
     // 3. Send to company's destination email
     // 4. Handle success/failure
     
-    print('Simulating email sync for receipt ${item.receiptId}...');
+    print('=== SYNC SERVICE: Processing receipt ${item.receiptId} in offline mode');
     
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 2));
+    // Simulate minimal processing time (no network calls)
+    await Future.delayed(const Duration(milliseconds: 100));
     
-    // Simulate random failure (remove in production)
-    // if (Random().nextBool()) {
-    //   throw Exception('Simulated network error');
-    // }
-    
-    print('Email sync completed for receipt ${item.receiptId}');
+    print('=== SYNC SERVICE: Marked receipt ${item.receiptId} as locally synced');
   }
   
   /// Check if automatic sync should run

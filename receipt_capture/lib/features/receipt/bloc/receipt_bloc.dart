@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/database/models.dart';
 import '../../../core/database/receipt_repository.dart';
 import '../../../core/services/camera_service.dart';
+import '../../../core/utils/pdf_utils.dart';
 import 'receipt_event.dart';
 import 'receipt_state.dart';
 
@@ -73,11 +75,45 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
     emit(state.copyWith(status: ReceiptStatus.loading));
 
     try {
+      // Generate PDF from the image (use cropped if available, otherwise original)
+      final imagePathForPdf = event.croppedImagePath ?? event.imagePath;
+      String? pdfPath;
+      
+      debugPrint('=== RECEIPT CREATION: Starting PDF generation for: $imagePathForPdf');
+      
+      // Emit PDF generation status
+      emit(state.copyWith(
+        status: ReceiptStatus.loading,
+        pdfGenerationStatus: 'Generating PDF...'
+      ));
+      
+      try {
+        debugPrint('=== RECEIPT CREATION: Calling generatePdfFromImage...');
+        pdfPath = await _cameraService.generatePdfFromImage(imagePathForPdf);
+        debugPrint('=== RECEIPT CREATION: PDF generation result: $pdfPath');
+        if (pdfPath != null) {
+          emit(state.copyWith(
+            pdfGenerationStatus: 'PDF generated successfully'
+          ));
+        }
+      } catch (e, stackTrace) {
+        // PDF generation failure shouldn't stop receipt creation
+        debugPrint('=== RECEIPT CREATION: PDF generation failed: $e');
+        debugPrint('Stack trace: $stackTrace');
+        emit(state.copyWith(
+          pdfGenerationStatus: 'PDF generation failed: $e'
+        ));
+      }
+
+      // Generate date-time format for receipt title (same as PDF naming)
+      final now = DateTime.now();
+      final dateTimeTitle = '${now.day.toString().padLeft(2, '0')}-${now.month.toString().padLeft(2, '0')}-${now.year}_${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      
       final receipt = Receipt(
         id: _uuid.v4(),
         imagePath: event.imagePath,
         croppedImagePath: event.croppedImagePath,
-        merchantName: event.merchantName,
+        merchantName: dateTimeTitle, // Use date-time format as title instead of business name
         amount: null, // Amount field removed
         date: event.date ?? DateTime.now(),
         category: event.category,
@@ -85,6 +121,7 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         isSynced: false,
+        pdfPath: pdfPath,
       );
 
       await _receiptRepository.createReceipt(receipt);
@@ -142,20 +179,28 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
     DeleteReceipt event,
     Emitter<ReceiptState> emit,
   ) async {
+    debugPrint('=== DELETE RECEIPT: Starting deletion for ID: ${event.receiptId}');
     emit(state.copyWith(status: ReceiptStatus.loading));
 
     try {
+      debugPrint('=== DELETE RECEIPT: Calling repository delete...');
       await _receiptRepository.deleteReceipt(event.receiptId);
+      debugPrint('=== DELETE RECEIPT: Repository delete completed');
 
       // Refresh the receipts list
+      debugPrint('=== DELETE RECEIPT: Refreshing receipts list...');
       final receipts = await _receiptRepository.getAllReceipts();
+      debugPrint('=== DELETE RECEIPT: Got ${receipts.length} receipts after deletion');
 
       emit(state.copyWith(status: ReceiptStatus.success, receipts: receipts));
-    } catch (error) {
+      debugPrint('=== DELETE RECEIPT: Delete operation completed successfully');
+    } catch (error, stackTrace) {
+      debugPrint('=== DELETE RECEIPT: Error during deletion: $error');
+      debugPrint('=== DELETE RECEIPT: Stack trace: $stackTrace');
       emit(
         state.copyWith(
           status: ReceiptStatus.failure,
-          errorMessage: error.toString(),
+          errorMessage: 'Failed to delete receipt: $error',
         ),
       );
     }

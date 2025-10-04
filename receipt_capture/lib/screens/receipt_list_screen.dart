@@ -122,8 +122,50 @@ class _ReceiptListScreenState extends State<ReceiptListScreen> {
             ),
             // Receipt list
             Expanded(
-              child: BlocBuilder<ReceiptBloc, ReceiptState>(
-                builder: (context, state) {
+              child: BlocListener<ReceiptBloc, ReceiptState>(
+                listener: (context, state) {
+                  if (state.status == ReceiptStatus.success && state.errorMessage.isEmpty) {
+                    // Check if this was a successful delete operation by checking if we have fewer receipts
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white, size: 20),
+                            SizedBox(width: 12),
+                            Text('Receipt deleted successfully'),
+                          ],
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  } else if (state.status == ReceiptStatus.failure && state.errorMessage.contains('delete')) {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.error, color: Colors.white, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text('Failed to delete receipt: ${state.errorMessage}'),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppTheme.errorColor,
+                        duration: const Duration(seconds: 4),
+                        action: SnackBarAction(
+                          label: 'Retry',
+                          textColor: Colors.white,
+                          onPressed: _refreshReceipts,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                child: BlocBuilder<ReceiptBloc, ReceiptState>(
+                  builder: (context, state) {
                   if (state.status == ReceiptStatus.loading) {
                     return const LoadingIndicator();
                   }
@@ -223,7 +265,8 @@ class _ReceiptListScreenState extends State<ReceiptListScreen> {
                       },
                     ),
                   );
-                },
+                  },
+                ),
               ),
             ),
           ],
@@ -278,6 +321,29 @@ class _ReceiptListScreenState extends State<ReceiptListScreen> {
     );
 
     if (result == true && mounted) {
+      debugPrint('=== UI DELETE: User confirmed deletion of receipt: $receiptId');
+      
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Deleting receipt...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
       context.read<ReceiptBloc>().add(DeleteReceipt(receiptId));
     }
   }
