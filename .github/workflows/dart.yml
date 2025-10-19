@@ -1,11 +1,11 @@
-name: iOS-ipa-build
+name: iOS-ipa-and-simulator-build
 
 on:
   workflow_dispatch:
 
 jobs:
   build-ios:
-    name: 🎉 iOS Build
+    name: 🎉 iOS Build (IPA)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
@@ -42,3 +42,34 @@ jobs:
           tag: v1.0
           overwrite: true
           body: "This is the first iOS release build (.ipa)"
+
+  build-ios-simulator:
+    name: 🧪 iOS Simulator Build (for Appetize.io)
+    runs-on: macos-latest
+    needs: build-ios
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: receipt_capture
+
+      - name: Build iOS Simulator App
+        run: flutter build ios --simulator --debug
+        working-directory: receipt_capture
+
+      - name: Zip Simulator Build
+        run: |
+          cd receipt_capture/build/ios/iphonesimulator
+          zip -r app.zip Runner.app
+
+      - name: Upload simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: receipt_capture/build/ios/iphonesimulator/app.zip
