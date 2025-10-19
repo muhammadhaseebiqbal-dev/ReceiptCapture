@@ -6,10 +6,7 @@ class FloatingNavItem {
   final IconData icon;
   final String label;
 
-  const FloatingNavItem({
-    required this.icon,
-    required this.label,
-  });
+  const FloatingNavItem({required this.icon, required this.label});
 }
 
 class FloatingNavigation extends StatefulWidget {
@@ -40,45 +37,33 @@ class _FloatingNavigationState extends State<FloatingNavigation>
   @override
   void initState() {
     super.initState();
-    
+
     _scaleController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
+
     _bounceController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     _rippleController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeInOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
 
-    _bounceAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _bounceController,
-      curve: Curves.elasticOut,
-    ));
+    _bounceAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.elasticOut),
+    );
 
-    _rippleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rippleController,
-      curve: Curves.easeOut,
-    ));
+    _rippleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _rippleController, curve: Curves.easeOut),
+    );
   }
 
   @override
@@ -90,21 +75,26 @@ class _FloatingNavigationState extends State<FloatingNavigation>
   }
 
   void _handleTap(int index) async {
+    // Don't trigger if already selected
+    if (index == widget.currentIndex) {
+      return;
+    }
+
     // Immediate callback for better responsiveness
     widget.onTap(index);
-    
-    // Add haptic feedback
-    HapticFeedback.lightImpact();
-    
+
+    // Add subtle haptic feedback for tab switching
+    HapticFeedback.selectionClick();
+
     // Play animations
     _scaleController.forward().then((_) {
       _scaleController.reverse();
     });
-    
+
     _bounceController.forward().then((_) {
       _bounceController.reverse();
     });
-    
+
     _rippleController.forward().then((_) {
       _rippleController.reverse();
     });
@@ -175,34 +165,59 @@ class _FloatingNavigationState extends State<FloatingNavigation>
                                           color: Theme.of(context)
                                               .colorScheme
                                               .primary
-                                              .withOpacity(0.1 + (_rippleAnimation.value * 0.1)),
-                                          borderRadius: BorderRadius.circular(30),
+                                              .withOpacity(
+                                                0.1 +
+                                                    (_rippleAnimation.value *
+                                                        0.1),
+                                              ),
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
                                         )
                                       : null,
                                   child: Transform.scale(
-                                    scale: isSelected ? _bounceAnimation.value : 1.0,
+                                    scale: isSelected
+                                        ? _bounceAnimation.value
+                                        : 1.0,
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
                                         AnimatedContainer(
-                                          duration: const Duration(milliseconds: 200),
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
                                           child: Icon(
                                             item.icon,
                                             color: isSelected
-                                                ? Theme.of(context).colorScheme.primary
-                                                : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary
+                                                : Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withOpacity(0.6),
                                             size: isSelected ? 26 : 24,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
                                         AnimatedDefaultTextStyle(
-                                          duration: const Duration(milliseconds: 200),
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                             color: isSelected
-                                                ? Theme.of(context).colorScheme.primary
-                                                : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary
+                                                : Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withOpacity(0.6),
                                           ),
                                           child: Text(item.label),
                                         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
@@ -69,7 +70,7 @@ class _CameraScreenState extends State<CameraScreen>
     try {
       // Dispose existing controller if any
       _disposeCamera();
-      
+
       final cameras = await availableCameras();
       if (cameras.isNotEmpty && mounted) {
         _cameraController = CameraController(
@@ -83,7 +84,7 @@ class _CameraScreenState extends State<CameraScreen>
           setState(() {
             _isCameraInitialized = true;
           });
-          
+
           // Hide instructions after 1 second delay
           Future.delayed(const Duration(seconds: 1), () {
             if (mounted) {
@@ -111,6 +112,9 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     try {
+      // Add haptic feedback when capturing
+      HapticFeedback.mediumImpact();
+
       final XFile image = await _cameraController!.takePicture();
 
       if (mounted) {
@@ -412,12 +416,18 @@ class _CameraScreenState extends State<CameraScreen>
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                          border: Border.all(color: Colors.white.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.receipt_long, color: Colors.white, size: 32),
+                            Icon(
+                              Icons.receipt_long,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               'Align receipt within the frame',
@@ -466,7 +476,7 @@ class ReceiptOverlayPainter extends CustomPainter {
       Offset(center.dx + crosshairLength, center.dy),
       crosshairPaint,
     );
-    
+
     // Draw vertical line
     canvas.drawLine(
       Offset(center.dx, center.dy - crosshairLength),

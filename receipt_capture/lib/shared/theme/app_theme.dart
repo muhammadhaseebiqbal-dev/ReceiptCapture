@@ -14,8 +14,12 @@ class AppTheme {
   static const Color lightBackground = Color(0xFFF8FAFC);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightCardColor = Color(0xFFFFFFFF);
-  static const Color lightOnSurface = Color(0xFF0F172A); // Darker for better contrast
-  static const Color lightSecondaryText = Color(0xFF475569); // Darker secondary text
+  static const Color lightOnSurface = Color(
+    0xFF0F172A,
+  ); // Darker for better contrast
+  static const Color lightSecondaryText = Color(
+    0xFF475569,
+  ); // Darker secondary text
 
   // Dark theme colors
   static const Color darkBackground = Color(0xFF0F172A);
@@ -74,6 +78,7 @@ class AppTheme {
           fontSize: 22,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.5,
+          inherit: false,
         ),
         iconTheme: const IconThemeData(color: lightOnSurface),
       ),
@@ -94,11 +99,14 @@ class AppTheme {
           elevation: 0,
           shadowColor: primaryColor.withOpacity(0.3),
           padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
+            inherit: true,
           ),
         ),
       ),
@@ -170,6 +178,7 @@ class AppTheme {
           fontSize: 22,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.5,
+          inherit: false,
         ),
         iconTheme: const IconThemeData(color: darkOnSurface),
       ),
@@ -221,37 +230,42 @@ class AppTheme {
     );
   }
 
-  // Text styles
+  // Text styles - All with inherit: true for smooth theme transitions
   static const TextStyle headlineLarge = TextStyle(
     fontSize: 32,
     fontWeight: FontWeight.bold,
+    inherit: true,
   );
 
   static const TextStyle headlineMedium = TextStyle(
     fontSize: 28,
     fontWeight: FontWeight.w600,
+    inherit: true,
   );
 
   static const TextStyle headlineSmall = TextStyle(
     fontSize: 24,
     fontWeight: FontWeight.w500,
+    inherit: true,
   );
 
   static const TextStyle titleLarge = TextStyle(
     fontSize: 22,
     fontWeight: FontWeight.w500,
+    inherit: true,
   );
 
   static const TextStyle titleMedium = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
+    inherit: true,
   );
 
-  static const TextStyle bodyLarge = TextStyle(fontSize: 16);
+  static const TextStyle bodyLarge = TextStyle(fontSize: 16, inherit: true);
 
-  static const TextStyle bodyMedium = TextStyle(fontSize: 14);
+  static const TextStyle bodyMedium = TextStyle(fontSize: 14, inherit: true);
 
-  static const TextStyle bodySmall = TextStyle(fontSize: 12);
+  static const TextStyle bodySmall = TextStyle(fontSize: 12, inherit: true);
 
   // Spacing
   static const double spacingXS = 4.0;

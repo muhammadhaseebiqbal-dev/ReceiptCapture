@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Camera & Photo Library Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>Receipt Capture needs access to your camera to take photos of receipts</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Receipt Capture needs access to your photo library to import receipt images</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Receipt Capture needs permission to save receipt images to your photo library</string>
 </dict>
 </plist>
