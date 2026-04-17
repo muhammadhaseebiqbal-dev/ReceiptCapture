@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +46,10 @@ export default function RegisterPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   
   const [formData, setFormData] = useState<RegistrationData>({
     companyName: '',
@@ -60,42 +62,41 @@ export default function RegisterPage() {
     selectedPlanId: '',
   });
 
-  // Available subscription plans
-  const subscriptionPlans: SubscriptionPlan[] = [
-    {
-      id: '1',
-      name: 'Starter',
-      description: 'Perfect for small teams',
-      price: 29.99,
-      billingCycle: 'monthly',
-      maxUsers: 5,
-      maxReceiptsPerMonth: 100,
-      features: ['Email Support', '1GB Storage', 'Basic Analytics', 'Mobile App Access'],
-      isActive: true,
-    },
-    {
-      id: '2',
-      name: 'Professional',
-      description: 'Growing businesses',
-      price: 59.99,
-      billingCycle: 'monthly',
-      maxUsers: 20,
-      maxReceiptsPerMonth: 500,
-      features: ['Priority Support', '10GB Storage', 'Advanced Analytics', 'Custom Categories', 'API Access'],
-      isActive: true,
-    },
-    {
-      id: '3',
-      name: 'Enterprise',
-      description: 'Large organizations',
-      price: 149.99,
-      billingCycle: 'monthly',
-      maxUsers: 100,
-      maxReceiptsPerMonth: 2000,
-      features: ['Phone Support', 'Unlimited Storage', 'Advanced Analytics', 'API Access', 'Custom Integrations', 'SSO'],
-      isActive: true,
-    },
-  ];
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const [plansResponse, storedPlanId] = await Promise.all([
+          fetch('/api/subscription-plans'),
+          Promise.resolve(sessionStorage.getItem('selectedPlanId')),
+        ]);
+
+        if (!plansResponse.ok) {
+          throw new Error('Failed to load subscription plans');
+        }
+
+        const plans = await plansResponse.json();
+        const activePlans = Array.isArray(plans)
+          ? plans.filter((plan: SubscriptionPlan) => plan.isActive)
+          : [];
+
+        setSubscriptionPlans(activePlans);
+
+        if (storedPlanId && activePlans.some((plan: SubscriptionPlan) => plan.id === storedPlanId)) {
+          setFormData((previous) => ({ ...previous, selectedPlanId: storedPlanId }));
+        } else if (!formData.selectedPlanId && activePlans[0]) {
+          setFormData((previous) => ({ ...previous, selectedPlanId: activePlans[0].id }));
+        }
+      } catch (fetchError) {
+        console.error('Failed to load subscription plans:', fetchError);
+        setError('Unable to load subscription plans right now. Please try again.');
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+
+    void loadPlans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getPlanIcon = (planName: string) => {
     switch (planName.toLowerCase()) {
@@ -449,7 +450,15 @@ export default function RegisterPage() {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Choose Your Plan</h3>
-                  
+                  {plansLoading ? (
+                    <div className="flex items-center justify-center py-16 text-muted-foreground">
+                      Loading subscription plans...
+                    </div>
+                  ) : subscriptionPlans.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
+                      No active subscription plans are available right now.
+                    </div>
+                  ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {subscriptionPlans.map((plan) => (
                       <div
@@ -506,8 +515,9 @@ export default function RegisterPage() {
                       </div>
                     ))}
                   </div>
+                  )}
 
-                  {selectedPlan && (
+                  {selectedPlan && !plansLoading && (
                     <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <h4 className="font-medium text-blue-900 mb-2">Plan Summary</h4>
                       <div className="text-sm text-blue-800">

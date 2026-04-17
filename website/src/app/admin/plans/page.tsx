@@ -13,6 +13,24 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatCurrency } from '@/lib/utils';
 import { ArrowLeft, Plus, Edit, Trash2, Loader2, Check, X } from 'lucide-react';
 
+// Available features for all plans
+const AVAILABLE_FEATURES = [
+  'Email Support',
+  'Priority Support',
+  'Phone Support',
+  'Basic Analytics',
+  'Advanced Analytics',
+  'Receipt Forwarding',
+  'Custom Categories',
+  'API Access',
+  'Unlimited Storage',
+  'Dedicated Account Manager',
+  'Custom Branding',
+  'Bulk Import',
+  'Receipt OCR',
+  'Multi-language Support',
+];
+
 interface SubscriptionPlan {
   id: string;
   name: string;
@@ -21,7 +39,7 @@ interface SubscriptionPlan {
   billing_cycle: string;
   max_users: number;
   max_receipts_per_month: number | null;
-  features: any;
+  features: string[];
   is_active: boolean;
   created_at: string;
 }
@@ -33,8 +51,38 @@ interface FormData {
   billing_cycle: string;
   max_users: string;
   max_receipts_per_month: string;
-  features: string;
+  features: string[];
   is_active: boolean;
+}
+
+function normalizePlan(plan: any): SubscriptionPlan {
+  // Convert features to array format
+  let features: string[] = [];
+  if (Array.isArray(plan?.features)) {
+    features = plan.features;
+  } else if (typeof plan?.features === 'object' && plan.features !== null) {
+    // Convert object features to array of keys or key:value strings
+    features = Object.entries(plan.features).map(([key, value]) => {
+      if (typeof value === 'boolean' && value) {
+        return key;
+      }
+      return value ? `${key}: ${value}` : key;
+    });
+  }
+
+  return {
+    id: String(plan?.id ?? ''),
+    name: String(plan?.name ?? ''),
+    description: plan?.description ?? null,
+    price: Number(plan?.price ?? plan?.pricePerMonth ?? 0),
+    billing_cycle: plan?.billing_cycle ?? plan?.billingCycle ?? 'monthly',
+    max_users: Number(plan?.max_users ?? plan?.maxUsers ?? 0),
+    max_receipts_per_month:
+      plan?.max_receipts_per_month ?? plan?.maxReceiptsPerMonth ?? null,
+    features,
+    is_active: Boolean(plan?.is_active ?? plan?.isActive ?? true),
+    created_at: plan?.created_at ?? plan?.createdAt ?? new Date().toISOString(),
+  };
 }
 
 export default function ManagePlansPage() {
@@ -91,9 +139,9 @@ export default function ManagePlansPage() {
       }
 
       const data = await response.json();
-      
-      // API now returns array directly, not wrapped in { plans: [] }
-      setPlans(Array.isArray(data) ? data : []);
+
+      // Normalize both legacy snake_case and backend camelCase responses.
+      setPlans(Array.isArray(data) ? data.map(normalizePlan) : []);
     } catch (error: any) {
       setError(error.message);
       setPlans([]); // Set empty array on error
@@ -105,14 +153,14 @@ export default function ManagePlansPage() {
   const handleEdit = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
     setFormData({
-      name: plan.name,
-      description: plan.description || '',
-      price: plan.price.toString(),
-      billing_cycle: plan.billing_cycle,
-      max_users: plan.max_users.toString(),
-      max_receipts_per_month: plan.max_receipts_per_month?.toString() || '',
-      features: JSON.stringify(plan.features, null, 2),
-      is_active: plan.is_active
+      name: plan.name ?? '',
+      description: plan.description ?? '',
+      price: String(plan.price ?? ''),
+      billing_cycle: plan.billing_cycle ?? 'monthly',
+      max_users: String(plan.max_users ?? ''),
+      max_receipts_per_month: plan.max_receipts_per_month == null ? '' : String(plan.max_receipts_per_month),
+      features: Array.isArray(plan.features) ? plan.features : [],
+      is_active: Boolean(plan.is_active)
     });
     setIsDialogOpen(true);
   };
@@ -126,7 +174,7 @@ export default function ManagePlansPage() {
       billing_cycle: 'monthly',
       max_users: '',
       max_receipts_per_month: '',
-      features: '{}',
+      features: [],
       is_active: true
     });
     setIsDialogOpen(true);
@@ -144,15 +192,6 @@ export default function ManagePlansPage() {
         return;
       }
 
-      // Parse features JSON
-      let featuresObj = {};
-      try {
-        featuresObj = JSON.parse(formData.features || '{}');
-      } catch {
-        setError('Invalid JSON format for features');
-        return;
-      }
-
       const token = localStorage.getItem('token');
       const payload = {
         name: formData.name,
@@ -161,7 +200,7 @@ export default function ManagePlansPage() {
         billing_cycle: formData.billing_cycle,
         max_users: formData.max_users,
         max_receipts_per_month: formData.max_receipts_per_month || null,
-        features: featuresObj,
+        features: formData.features,
         is_active: formData.is_active
       };
 
@@ -335,14 +374,14 @@ export default function ManagePlansPage() {
                 </div>
 
                 {/* Features */}
-                {plan.features && typeof plan.features === 'object' && Object.keys(plan.features).length > 0 && (
+                {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
                   <div className="mb-4">
                     <p className="text-sm font-medium mb-2">Features:</p>
                     <div className="space-y-1">
-                      {Object.entries(plan.features).map(([key, value]) => (
-                        <div key={key} className="flex items-start gap-2 text-xs text-gray-600">
+                      {plan.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-2 text-xs text-gray-600">
                           <Check className="h-3 w-3 text-green-600 mt-0.5 shrink-0" />
-                          <span>{typeof value === 'boolean' ? key : `${key}: ${value}`}</span>
+                          <span>{feature}</span>
                         </div>
                       ))}
                     </div>
@@ -481,16 +520,37 @@ export default function ManagePlansPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="features">Features (JSON format)</Label>
-              <textarea
-                id="features"
-                className="w-full min-h-[120px] px-3 py-2 border rounded-md font-mono text-sm"
-                value={formData.features}
-                onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-                placeholder='{"support": "email", "storage": "1GB"}'
-              />
+              <Label>Features</Label>
+              <div className="grid grid-cols-2 gap-3 p-3 border rounded-md bg-gray-50">
+                {AVAILABLE_FEATURES.map((feature) => (
+                  <div key={feature} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`feature-${feature}`}
+                      checked={formData.features.includes(feature)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            features: [...formData.features, feature]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            features: formData.features.filter((f) => f !== feature)
+                          });
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <Label htmlFor={`feature-${feature}`} className="text-sm cursor-pointer font-normal">
+                      {feature}
+                    </Label>
+                  </div>
+                ))}
+              </div>
               <p className="text-xs text-gray-500">
-                Example: {`{"support": "priority", "storage": "10GB", "analytics": true}`}
+                Select all features that should be included in this plan
               </p>
             </div>
 

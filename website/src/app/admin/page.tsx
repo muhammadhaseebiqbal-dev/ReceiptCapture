@@ -99,13 +99,11 @@ export default function AdminPage() {
           name: plan.name,
           description: plan.description,
           price: plan.price,
-          billingCycle: plan.billing_cycle,
-          maxUsers: plan.max_users,
-          maxReceiptsPerMonth: plan.max_receipts_per_month,
-          features: Object.entries(plan.features || {}).map(([key, value]) => 
-            typeof value === 'boolean' ? key : `${key}: ${value}`
-          ),
-          isActive: plan.is_active,
+          billingCycle: plan.billingCycle,
+          maxUsers: plan.maxUsers,
+          maxReceiptsPerMonth: plan.maxReceiptsPerMonth,
+          features: Array.isArray(plan.features) ? plan.features : [],
+          isActive: plan.isActive,
         }));
       }
 

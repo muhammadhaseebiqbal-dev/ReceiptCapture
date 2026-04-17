@@ -98,29 +98,15 @@ export default function LandingPage() {
         const displayPlans: DisplayPlan[] = data
           .filter(plan => plan.is_active) // Only show active plans
           .map((plan, index) => {
-            // Convert features JSON to array of strings
-            const featuresArray: string[] = [];
+            // Features come as array now
+            const featuresArray: string[] = Array.isArray(plan.features) ? [...plan.features] : [];
             
             // Add user and receipt limits
-            featuresArray.push(`Up to ${plan.max_users} users`);
+            featuresArray.unshift(`Up to ${plan.max_users} users`);
             if (plan.max_receipts_per_month) {
               featuresArray.push(`${plan.max_receipts_per_month} receipts per month`);
             } else {
               featuresArray.push('Unlimited receipts per month');
-            }
-            
-            // Add features from JSON
-            if (plan.features && typeof plan.features === 'object') {
-              Object.entries(plan.features).forEach(([key, value]) => {
-                if (typeof value === 'boolean' && value === true) {
-                  // For boolean true values, just show the key formatted nicely
-                  featuresArray.push(key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-                } else if (typeof value === 'string' || typeof value === 'number') {
-                  // For string/number values, show key: value
-                  const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                  featuresArray.push(`${formattedKey}: ${value}`);
-                }
-              });
             }
             
             // Mark middle plan as popular (or the most expensive one if odd number)
@@ -151,17 +137,16 @@ export default function LandingPage() {
   };
 
   const handleGetStarted = () => {
-    router.push('/login');
+    router.push('/register');
   };
 
   const handleSignIn = () => {
     router.push('/login');
   };
 
-  const handlePlanSelect = (planName: string) => {
-    // Store selected plan in session storage
-    sessionStorage.setItem('selectedPlan', planName);
-    router.push('/login');
+  const handlePlanSelect = (planId: string) => {
+    sessionStorage.setItem('selectedPlanId', planId);
+    router.push('/register');
   };
 
   return (
@@ -375,7 +360,7 @@ export default function LandingPage() {
                     <Button 
                       className="w-full" 
                       variant={plan.popular ? 'default' : 'outline'}
-                      onClick={() => handlePlanSelect(plan.name)}
+                      onClick={() => handlePlanSelect(plan.id)}
                     >
                       Get Started
                     </Button>
