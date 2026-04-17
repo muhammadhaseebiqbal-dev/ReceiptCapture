@@ -253,6 +253,66 @@
       </section>
 
       <section class="card section full">
+        <h2>Company Settings</h2>
+        <p class="hint">Loads and updates the destination email stored in PostgreSQL.</p>
+        <div class="row">
+          <div><label>Company Name</label><input id="companyName" placeholder="Loaded from API"></div>
+          <div><label>Destination Email</label><input id="companyDestinationEmail" placeholder="Loaded from API"></div>
+        </div>
+        <div class="row">
+          <div><label>Domain</label><input id="companyDomain" placeholder="Loaded from API"></div>
+          <div><label>Company ID (optional for admin)</label><input id="companyId" placeholder="Leave blank for current company"></div>
+        </div>
+        <div class="actions">
+          <button class="secondary" type="button" onclick="loadCompanySettings()">GET /api/company/settings</button>
+          <button class="primary" type="button" onclick="saveCompanySettings()">PUT /api/company/settings</button>
+        </div>
+      </section>
+
+      <section class="card section full">
+        <h2>Receipt Upload</h2>
+        <p class="hint">Uploads a receipt image as multipart form-data, stores it in PostgreSQL, and creates a sync queue row. SendGrid is intentionally skipped.</p>
+        <div class="row">
+          <div><label>Receipt Image</label><input id="receiptImage" type="file" accept="image/*"></div>
+          <div><label>Merchant Name</label><input id="uploadMerchantName" value="Office Depot"></div>
+        </div>
+        <div class="row">
+          <div><label>Amount</label><input id="uploadAmount" value="45.99"></div>
+          <div><label>Receipt Date</label><input id="uploadReceiptDate" type="date"></div>
+        </div>
+        <div class="row">
+          <div><label>Category</label><input id="uploadCategory" value="Office Supplies"></div>
+          <div><label>Notes</label><input id="uploadNotes" value="Test upload from browser"></div>
+        </div>
+        <div class="actions">
+          <button class="primary" type="button" onclick="uploadReceipt()">POST /api/receipts/upload</button>
+        </div>
+      </section>
+
+      <section class="card section full">
+        <h2>Offline Sync Queue</h2>
+        <p class="hint">Posts a batch of queued receipt objects. You can paste JSON here or use the default example.</p>
+        <div class="small">The sample item will fail until you provide either a real <strong>imagePath</strong> from a prior upload or a base64 image string in <strong>imageBase64</strong>.</div>
+        <label for="syncQueueJson">Batch JSON</label>
+        <textarea id="syncQueueJson">{
+  "items": [
+    {
+      "receiptId": "",
+      "imageBase64": "",
+      "merchantName": "Coffee Shop",
+      "amount": 12.5,
+      "receiptDate": "2026-04-17",
+      "category": "Meals",
+      "notes": "Offline batch example"
+    }
+  ]
+}</textarea>
+        <div class="actions">
+          <button class="primary" type="button" onclick="postSyncQueue()">POST /api/sync/queue</button>
+        </div>
+      </section>
+
+      <section class="card section full">
         <h2>Register Company Representative</h2>
         <p class="hint">Creates a company, representative user, and trial billing row.</p>
         <div class="row">
@@ -386,6 +446,30 @@
       return data;
     }
 
+    async function requestMultipart(path, formData) {
+      const headers = {};
+      const token = tokenValue();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await fetch(`${apiBase()}${path}`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+
+      if (response.ok && data && data.token) {
+        saveToken(data.token);
+      }
+
+      setOutput({ status: response.status, ok: response.ok, data });
+      setHealth(`POST ${path} -> ${response.status}`, response.ok ? 'good' : 'bad');
+      return data;
+    }
+
     function setPlanOptions(plans) {
       const select = document.getElementById('regPlanId');
       select.innerHTML = '';
@@ -411,6 +495,62 @@
       if (data && data.plans) {
         setPlanOptions(data.plans);
         setOutput({ status: 'plans loaded', plans: data.plans });
+      }
+    }
+
+    async function loadCompanySettings() {
+      const companyId = document.getElementById('companyId').value.trim();
+      const query = companyId ? `?companyId=${encodeURIComponent(companyId)}` : '';
+      const data = await request(`/api/company/settings${query}`, 'GET');
+
+      if (data && data.company) {
+        document.getElementById('companyName').value = data.company.name || '';
+        document.getElementById('companyDestinationEmail').value = data.company.destinationEmail || '';
+        document.getElementById('companyDomain').value = data.company.domain || '';
+        if (!document.getElementById('companyId').value.trim()) {
+          document.getElementById('companyId').value = data.company.id || '';
+        }
+      }
+    }
+
+    async function saveCompanySettings() {
+      const companyId = document.getElementById('companyId').value.trim();
+      const body = {
+        companyId: companyId || undefined,
+        name: document.getElementById('companyName').value,
+        destinationEmail: document.getElementById('companyDestinationEmail').value,
+        domain: document.getElementById('companyDomain').value,
+      };
+
+      await request('/api/company/settings', 'PUT', body);
+    }
+
+    async function uploadReceipt() {
+      const fileInput = document.getElementById('receiptImage');
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        setOutput('Choose a receipt image first.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('merchantName', document.getElementById('uploadMerchantName').value);
+      formData.append('amount', document.getElementById('uploadAmount').value);
+      formData.append('receiptDate', document.getElementById('uploadReceiptDate').value);
+      formData.append('category', document.getElementById('uploadCategory').value);
+      formData.append('notes', document.getElementById('uploadNotes').value);
+
+      await requestMultipart('/api/receipts/upload', formData);
+    }
+
+    async function postSyncQueue() {
+      try {
+        const parsed = JSON.parse(document.getElementById('syncQueueJson').value);
+        await request('/api/sync/queue', 'POST', parsed);
+      } catch (error) {
+        setOutput(`Invalid JSON in sync queue box: ${error.message}`);
+        setHealth('Invalid sync JSON', 'bad');
       }
     }
 

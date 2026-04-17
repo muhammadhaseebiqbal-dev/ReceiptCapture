@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginPortalUser } from '@/lib/auth-operations';
+import { proxyJsonRequest } from '@/lib/backend-proxy';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
-    const result = await loginPortalUser(email, password);
-    if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
-
-    return NextResponse.json({
-      user: result.user,
-      token: result.token,
-      tokenPayload: result.tokenPayload,
-      message: 'Login successful',
-    });
+    const body = await request.json();
+    return await proxyJsonRequest(request, '/api/auth/login', 'POST', body);
 
   } catch (error) {
     console.error('Login error:', error);

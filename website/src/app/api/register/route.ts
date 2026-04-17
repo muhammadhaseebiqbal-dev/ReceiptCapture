@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registerCompanyRepresentative } from '@/lib/auth-operations';
+import { proxyJsonRequest } from '@/lib/backend-proxy';
 
 export async function POST(request: NextRequest) {
   try {
-    const result = await registerCompanyRepresentative(await request.json());
-
-    if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
-
-    return NextResponse.json(result, { status: 201 });
+    const body = await request.json();
+    return await proxyJsonRequest(request, '/api/auth/register', 'POST', body);
 
   } catch (error) {
     console.error('Registration error:', error);
