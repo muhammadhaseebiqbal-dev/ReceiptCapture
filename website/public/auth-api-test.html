@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Auth API Test Console</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(16, 24, 48, 0.9);
+      --panel-2: rgba(25, 35, 66, 0.9);
+      --line: rgba(148, 163, 184, 0.18);
+      --text: #e5eefc;
+      --muted: #9fb1d1;
+      --accent: #4f8cff;
+      --accent-2: #7c5cff;
+      --good: #39d98a;
+      --bad: #ff6b6b;
+      --warn: #f5c451;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+      --radius: 18px;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(79, 140, 255, 0.22), transparent 30%),
+        radial-gradient(circle at top right, rgba(124, 92, 255, 0.2), transparent 28%),
+        linear-gradient(180deg, #08101d 0%, #0b1020 48%, #050814 100%);
+    }
+
+    .wrap {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.5fr 0.95fr;
+      gap: 18px;
+      align-items: stretch;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel), rgba(16, 24, 48, 0.76));
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero-main { padding: 28px; }
+    .hero-side { padding: 22px; }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+    }
+
+    .sub {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 72ch;
+      margin: 0;
+    }
+
+    .pills { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #d9e7ff;
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .section {
+      grid-column: span 6;
+      padding: 20px;
+    }
+
+    .section.full { grid-column: 1 / -1; }
+    .section.third { grid-column: span 4; }
+
+    .section h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .section p.hint {
+      margin: -6px 0 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 12px 0 8px;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid rgba(148,163,184,0.18);
+      background: rgba(4, 10, 24, 0.72);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(79, 140, 255, 0.8);
+      box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.14);
+    }
+
+    textarea { min-height: 110px; resize: vertical; }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button {
+      border: 0;
+      color: white;
+      cursor: pointer;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-weight: 650;
+      transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+      box-shadow: 0 12px 30px rgba(79, 140, 255, 0.22);
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); opacity: 0.9; }
+    .primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+    .secondary { background: rgba(255,255,255,0.08); box-shadow: none; border: 1px solid rgba(255,255,255,0.08); }
+    .danger { background: linear-gradient(135deg, #ff6b6b, #e63946); }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--warn); }
+    .status.good .dot { background: var(--good); }
+    .status.bad .dot { background: var(--bad); }
+
+    pre {
+      margin: 16px 0 0;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,0.15);
+      background: rgba(2, 6, 23, 0.8);
+      color: #dbeafe;
+      overflow: auto;
+      min-height: 180px;
+      max-height: 380px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .split { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+
+    @media (max-width: 980px) {
+      .hero, .row, .row-3, .split { grid-template-columns: 1fr; }
+      .section, .section.third { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <div class="card hero-main">
+        <h1>Auth API Test Console</h1>
+        <p class="sub">
+          Use this page to verify registration, login, session validation, staff management, and the mobile staff login flow against the live Next.js API.
+        </p>
+        <div class="pills">
+          <span class="pill">POST /api/auth/register</span>
+          <span class="pill">POST /api/auth/login</span>
+          <span class="pill">POST /api/auth/staff/login</span>
+          <span class="pill">GET /api/auth/me</span>
+          <span class="pill">POST/GET/DELETE /api/staff</span>
+        </div>
+      </div>
+      <div class="card hero-side">
+        <div id="healthStatus" class="status"><span class="dot"></span><span>Ready to test</span></div>
+        <div class="small">
+          Open this page from the app origin, for example at <strong>/auth-api-test.html</strong>. It stores your JWT in localStorage for convenience.
+        </div>
+        <div class="actions">
+          <button class="secondary" type="button" onclick="loadStoredToken()">Load Saved Token</button>
+          <button class="secondary" type="button" onclick="clearToken()">Clear Token</button>
+          <button class="secondary" type="button" onclick="checkMe()">Test /me</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card section">
+        <h2>Connection</h2>
+        <p class="hint">If needed, point this at a different host. By default it uses the current origin.</p>
+        <label for="apiBase">API Base URL</label>
+        <input id="apiBase" value="" placeholder="Leave blank to use current origin">
+        <div class="small">Stored token key: <strong>receipt_capture_auth_token</strong></div>
+      </section>
+
+      <section class="card section">
+        <h2>Auth State</h2>
+        <p class="hint">Current token and decoded-ish payload preview.</p>
+        <label for="token">JWT Token</label>
+        <textarea id="token" placeholder="Token appears here after login or registration"></textarea>
+      </section>
+
+      <section class="card section full">
+        <h2>Register Company Representative</h2>
+        <p class="hint">Creates a company, representative user, and trial billing row.</p>
+        <div class="row">
+          <div><label>Company Name</label><input id="regCompanyName" value="TechCorp Demo 2"></div>
+          <div><label>Company Domain</label><input id="regCompanyDomain" value="techcorp-demo2.com"></div>
+        </div>
+        <div class="row">
+          <div><label>Destination Email</label><input id="regDestinationEmail" value="receipts@techcorp-demo2.com"></div>
+          <div>
+            <label>Subscription Plan</label>
+            <select id="regPlanId"></select>
+            <div class="actions" style="margin-top: 10px;">
+              <button class="secondary" type="button" onclick="loadPlans()">Load Plans</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>Rep Name</label><input id="regRepName" value="Jane Doe"></div>
+          <div><label>Rep Email</label><input id="regRepEmail" value="jane.doe@techcorp-demo2.com"></div>
+        </div>
+        <div class="row">
+          <div><label>Rep Password</label><input id="regRepPassword" type="password" value="Password123!"></div>
+          <div><label>&nbsp;</label><button class="primary" type="button" onclick="registerRep()">POST /api/auth/register</button></div>
+        </div>
+      </section>
+
+      <section class="card section">
+        <h2>Portal Login</h2>
+        <p class="hint">Login as a company rep or master admin.</p>
+        <label>Email</label><input id="portalEmail" value="jane.doe@techcorp-demo2.com">
+        <label>Password</label><input id="portalPassword" type="password" value="Password123!">
+        <div class="actions"><button class="primary" type="button" onclick="portalLogin()">POST /api/auth/login</button></div>
+      </section>
+
+      <section class="card section">
+        <h2>Mobile Staff Login</h2>
+        <p class="hint">This should authenticate `manager` or `employee` roles only.</p>
+        <label>Email</label><input id="staffEmail" value="staff@example.com">
+        <label>Password</label><input id="staffPassword" type="password" value="password123">
+        <div class="actions"><button class="primary" type="button" onclick="staffLogin()">POST /api/auth/staff/login</button></div>
+      </section>
+
+      <section class="card section full">
+        <h2>Staff Management</h2>
+        <p class="hint">Uses the bearer token in the token box. Reps can only manage staff in their own company.</p>
+        <div class="row-3">
+          <div><label>Staff Email</label><input id="staffNewEmail" value="new.staff@techcorp-demo2.com"></div>
+          <div><label>Staff Name</label><input id="staffNewName" value="New Staff"></div>
+          <div><label>Staff Role</label>
+            <select id="staffNewRole">
+              <option value="employee">employee</option>
+              <option value="manager">manager</option>
+            </select>
+          </div>
+        </div>
+        <label>Staff Password</label><input id="staffNewPassword" type="password" value="Password123!">
+        <div class="actions">
+          <button class="primary" type="button" onclick="createStaff()">POST /api/staff</button>
+          <button class="secondary" type="button" onclick="listStaff()">GET /api/staff</button>
+          <button class="danger" type="button" onclick="deleteStaffByPrompt()">DELETE /api/staff/{id}</button>
+        </div>
+      </section>
+
+      <section class="card section full">
+        <h2>Response</h2>
+        <p class="hint">Every request response appears here.</p>
+        <pre id="output">Ready.</pre>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const storageKey = 'receipt_capture_auth_token';
+
+    function apiBase() {
+      return "http://localhost:4000"
+    }
+
+    function tokenValue() {
+      return document.getElementById('token').value.trim();
+    }
+
+    function setOutput(value) {
+      document.getElementById('output').textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    }
+
+    function setHealth(text, state) {
+      const el = document.getElementById('healthStatus');
+      el.className = `status ${state || ''}`.trim();
+      el.innerHTML = `<span class="dot"></span><span>${text}</span>`;
+    }
+
+    function saveToken(token) {
+      document.getElementById('token').value = token || '';
+      localStorage.setItem(storageKey, token || '');
+    }
+
+    function loadStoredToken() {
+      const token = localStorage.getItem(storageKey) || '';
+      document.getElementById('token').value = token;
+      setOutput(token ? 'Loaded token from localStorage.' : 'No saved token found.');
+    }
+
+    function clearToken() {
+      localStorage.removeItem(storageKey);
+      document.getElementById('token').value = '';
+      setOutput('Token cleared.');
+    }
+
+    async function request(path, method, body) {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = tokenValue();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const response = await fetch(`${apiBase()}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const text = await response.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+
+      if (response.ok && data && data.token) {
+        saveToken(data.token);
+      }
+
+      setOutput({ status: response.status, ok: response.ok, data });
+      setHealth(`${method} ${path} -> ${response.status}`, response.ok ? 'good' : 'bad');
+      return data;
+    }
+
+    function setPlanOptions(plans) {
+      const select = document.getElementById('regPlanId');
+      select.innerHTML = '';
+
+      if (!plans.length) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No active plans found';
+        select.appendChild(option);
+        return;
+      }
+
+      for (const plan of plans) {
+        const option = document.createElement('option');
+        option.value = plan.id;
+        option.textContent = `${plan.name} - $${plan.price} / ${plan.billingCycle}`;
+        select.appendChild(option);
+      }
+    }
+
+    async function loadPlans() {
+      const data = await request('/api/subscription-plans', 'GET');
+      if (data && data.plans) {
+        setPlanOptions(data.plans);
+        setOutput({ status: 'plans loaded', plans: data.plans });
+      }
+    }
+
+    async function registerRep() {
+      await request('/api/auth/register', 'POST', {
+        companyName: document.getElementById('regCompanyName').value,
+        companyDomain: document.getElementById('regCompanyDomain').value,
+        destinationEmail: document.getElementById('regDestinationEmail').value,
+        representativeName: document.getElementById('regRepName').value,
+        representativeEmail: document.getElementById('regRepEmail').value,
+        representativePassword: document.getElementById('regRepPassword').value,
+        selectedPlanId: document.getElementById('regPlanId').value,
+      });
+    }
+
+    async function portalLogin() {
+      await request('/api/auth/login', 'POST', {
+        email: document.getElementById('portalEmail').value,
+        password: document.getElementById('portalPassword').value,
+      });
+    }
+
+    async function staffLogin() {
+      await request('/api/auth/staff/login', 'POST', {
+        email: document.getElementById('staffEmail').value,
+        password: document.getElementById('staffPassword').value,
+      });
+    }
+
+    async function checkMe() {
+      await request('/api/auth/me', 'GET');
+    }
+
+    async function createStaff() {
+      await request('/api/staff', 'POST', {
+        email: document.getElementById('staffNewEmail').value,
+        name: document.getElementById('staffNewName').value,
+        role: document.getElementById('staffNewRole').value,
+        password: document.getElementById('staffNewPassword').value,
+      });
+    }
+
+    async function listStaff() {
+      await request('/api/staff', 'GET');
+    }
+
+    async function deleteStaffByPrompt() {
+      const staffId = prompt('Enter the staff user id to delete:');
+      if (!staffId) return;
+      await request(`/api/staff/${encodeURIComponent(staffId)}`, 'DELETE');
+    }
+
+    loadPlans();
+    loadStoredToken();
+    setOutput('Ready. Fill in a plan id and use Register or Login to start testing.');
+  </script>
+</body>
+</html>

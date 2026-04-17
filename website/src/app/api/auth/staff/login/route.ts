@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginPortalUser } from '@/lib/auth-operations';
+import { loginStaffUser } from '@/lib/auth-operations';
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
-    const result = await loginPortalUser(email, password);
+    const result = await loginStaffUser(email, password);
+
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
@@ -15,12 +16,8 @@ export async function POST(request: NextRequest) {
       tokenPayload: result.tokenPayload,
       message: 'Login successful',
     });
-
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Staff login error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
