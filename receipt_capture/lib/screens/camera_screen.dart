@@ -81,7 +81,7 @@ class _CameraScreenState extends State<CameraScreen>
       if (cameras.isNotEmpty && mounted) {
         _cameraController = CameraController(
           cameras.first,
-          ResolutionPreset.max, // Upgraded for better OCR/Detection engine
+          ResolutionPreset.high, // Balanced for performance and OCR detection
           enableAudio: false,
           imageFormatGroup: ImageFormatGroup.jpeg,
         );
