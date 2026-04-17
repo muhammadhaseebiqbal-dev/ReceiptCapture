@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     // Update the user's password in the database
     const { data, error } = await supabaseAdmin
-      .from('portal_users')
+      .from('users')
       .update({ password_hash: hashedPassword })
       .eq('email', email)
       .select();

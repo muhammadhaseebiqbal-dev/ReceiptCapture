@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 
 // GET - Fetch all subscription plans (PUBLIC - no auth required for landing page)
 export async function GET(request: NextRequest) {
@@ -10,10 +10,10 @@ export async function GET(request: NextRequest) {
     const token = authHeader?.replace('Bearer ', '');
     let isAdmin = false;
 
-    // If token is provided, verify it
+    // If token is provided, verify and check admin role
     if (token) {
-      const decoded = verifyToken(token);
-      if (decoded && decoded.role === 'master_admin') {
+      const authResult = await requireAuth(request, ['master_admin']);
+      if (!authResult.response) {
         isAdmin = true;
       }
     }
@@ -53,22 +53,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new subscription plan
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'master_admin') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+    const authResult = await requireAuth(request, ['master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
     const body = await request.json();

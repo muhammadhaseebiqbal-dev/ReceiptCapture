@@ -1,49 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dataStore } from '@/lib/data-store';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { hashPassword } from '@/lib/auth';
 import { isValidEmail } from '@/lib/utils';
 
 interface RouteParams {
   params: { id: string };
 }
 
-// PUT - Update staff user
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const authResult = await requireAuth(request, ['company_representative', 'master_admin']);
+    if (authResult.response) {
+      return authResult.response;
+    }
+
+    const currentUser = authResult.context!.user;
     const { id } = params;
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
 
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
-    }
+    const { data: staff, error: findError } = await supabaseAdmin
+      .from('users')
+      .select('id, email, name, role, company_id, is_active, created_by, created_at')
+      .eq('id', id)
+      .in('role', ['manager', 'employee'])
+      .maybeSingle();
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const user = dataStore.getUserById(decoded.userId);
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Find the staff user
-    const staff = dataStore.getAppUsers().find(s => s.id === id);
-    if (!staff) {
+    if (findError || !staff) {
       return NextResponse.json({ error: 'Staff user not found' }, { status: 404 });
     }
 
-    // Authorization check
-    if (user.role === 'company_representative') {
-      if (!user.companyId || staff.companyId !== user.companyId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
+    if (currentUser.role === 'company_representative' && staff.company_id !== currentUser.company_id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     const { email, name, role, isActive, password } = await request.json();
 
-    // Validation
     if (email && !isValidEmail(email)) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
@@ -52,81 +43,93 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    // Check if email is being changed and if it already exists
-    if (email && email !== staff.email) {
-      const existingUser = dataStore.getUserByEmail(email);
-      const existingAppUser = dataStore.getAppUsers().find(u => u.email === email && u.id !== id);
-      
-      if (existingUser || existingAppUser) {
+    if (email && email.toLowerCase() !== staff.email.toLowerCase()) {
+      const { data: existing } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .neq('id', id)
+        .maybeSingle();
+
+      if (existing) {
         return NextResponse.json({ error: 'Email already exists' }, { status: 400 });
       }
     }
 
-    // Update staff user
-    const updates: Partial<typeof staff> = {};
-    if (email !== undefined) updates.email = email;
+    const updates: Record<string, any> = {};
+    if (email !== undefined) updates.email = email.toLowerCase();
     if (name !== undefined) updates.name = name;
     if (role !== undefined) updates.role = role;
-    if (isActive !== undefined) updates.isActive = isActive;
-    if (password !== undefined) updates.password = password; // In production: hash this
+    if (isActive !== undefined) updates.is_active = isActive;
+    if (password !== undefined && password !== '') {
+      updates.password_hash = await hashPassword(password);
+    }
 
-    dataStore.updateAppUser(id, updates);
+    const { data: updatedStaff, error: updateError } = await supabaseAdmin
+      .from('users')
+      .update(updates)
+      .eq('id', id)
+      .select('id, email, name, role, company_id, is_active, created_by, created_at')
+      .single();
 
-    const updatedStaff = dataStore.getAppUsers().find(s => s.id === id);
-    const { password: _, ...staffWithoutPassword } = updatedStaff!;
+    if (updateError || !updatedStaff) {
+      return NextResponse.json({ error: 'Failed to update staff user' }, { status: 500 });
+    }
 
     return NextResponse.json({
-      staff: staffWithoutPassword,
-      message: 'Staff user updated successfully'
+      staff: {
+        id: updatedStaff.id,
+        email: updatedStaff.email,
+        name: updatedStaff.name,
+        role: updatedStaff.role,
+        companyId: updatedStaff.company_id,
+        isActive: updatedStaff.is_active,
+        createdBy: updatedStaff.created_by,
+        createdAt: updatedStaff.created_at,
+      },
+      message: 'Staff user updated successfully',
     });
-
   } catch (error) {
     console.error('Update staff error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// DELETE - Delete staff user
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = await params;
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    const authResult = await requireAuth(request, ['company_representative', 'master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const currentUser = authResult.context!.user;
+    const { id } = params;
 
-    const user = dataStore.getUserById(decoded.userId);
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const { data: staff, error: findError } = await supabaseAdmin
+      .from('users')
+      .select('id, company_id')
+      .eq('id', id)
+      .in('role', ['manager', 'employee'])
+      .maybeSingle();
 
-    // Find the staff user
-    const staff = dataStore.getAppUsers().find(s => s.id === id);
-    if (!staff) {
+    if (findError || !staff) {
       return NextResponse.json({ error: 'Staff user not found' }, { status: 404 });
     }
 
-    // Authorization check
-    if (user.role === 'company_representative') {
-      if (!user.companyId || staff.companyId !== user.companyId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-      }
+    if (currentUser.role === 'company_representative' && staff.company_id !== currentUser.company_id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Delete staff user
-    dataStore.deleteAppUser(id);
+    const { error: deleteError } = await supabaseAdmin
+      .from('users')
+      .delete()
+      .eq('id', id);
 
-    return NextResponse.json({
-      message: 'Staff user deleted successfully'
-    });
+    if (deleteError) {
+      return NextResponse.json({ error: 'Failed to delete staff user' }, { status: 500 });
+    }
 
+    return NextResponse.json({ message: 'Staff user deleted successfully' });
   } catch (error) {
     console.error('Delete staff error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

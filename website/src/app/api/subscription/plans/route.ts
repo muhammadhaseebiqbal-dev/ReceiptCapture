@@ -1,32 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dataStore } from '@/lib/data-store';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
-// GET - Get all available subscription plans
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    const authResult = await requireAuth(request);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const { data: plans, error } = await supabaseAdmin
+      .from('subscription_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: 'Failed to fetch subscription plans' }, { status: 500 });
     }
 
-    const user = dataStore.getUserById(decoded.userId);
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Get all active subscription plans
-    const plans = dataStore.getSubscriptionPlans().filter(plan => plan.isActive);
-
-    return NextResponse.json({ plans });
-
+    return NextResponse.json({
+      plans: (plans || []).map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        billingCycle: plan.billing_cycle,
+        maxUsers: plan.max_users,
+        maxReceiptsPerMonth: plan.max_receipts_per_month,
+        features: plan.features || [],
+        isActive: plan.is_active,
+      })),
+    });
   } catch (error) {
     console.error('Get subscription plans error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

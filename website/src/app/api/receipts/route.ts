@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dataStore } from '@/lib/data-store';
-import { verifyToken } from '@/lib/auth';
-import { Receipt } from '@/types';
+import { requireAuth } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authResult = await requireAuth(request, ['company_representative']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const payload = verifyToken(token);
-    if (!payload || payload.role !== 'company_representative') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Get current user and company
-    const user = dataStore.getUser(payload.userId);
-    if (!user || !user.companyId) {
+    const user = authResult.context!.user;
+    if (!user.company_id) {
       return NextResponse.json({ error: 'User or company not found' }, { status: 404 });
     }
 
-    // Get query parameters for filtering
     const url = new URL(request.url);
     const searchParams = url.searchParams;
     const status = searchParams.get('status');
@@ -31,68 +22,81 @@ export async function GET(request: NextRequest) {
     const minAmount = searchParams.get('minAmount');
     const maxAmount = searchParams.get('maxAmount');
     const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
 
-    // Get all receipts for the company
-    let receipts = dataStore.getReceiptsByCompany(user.companyId);
+    const { data: receiptsRaw, error } = await supabaseAdmin
+      .from('receipts')
+      .select('*')
+      .eq('company_id', user.company_id)
+      .order('created_at', { ascending: false });
 
-    // Apply filters
+    if (error) {
+      return NextResponse.json({ error: 'Failed to fetch receipts' }, { status: 500 });
+    }
+
+    let receipts = receiptsRaw || [];
+
     if (status && status !== 'all') {
-      receipts = receipts.filter(r => r.status === status);
+      receipts = receipts.filter((r) => r.status === status);
     }
 
     if (startDate) {
-      receipts = receipts.filter(r => {
-        const receiptDate = r.receiptDate || r.createdAt;
-        return new Date(receiptDate) >= new Date(startDate);
-      });
+      receipts = receipts.filter((r) => new Date(r.receipt_date || r.created_at) >= new Date(startDate));
     }
 
     if (endDate) {
-      receipts = receipts.filter(r => {
-        const receiptDate = r.receiptDate || r.createdAt;
-        return new Date(receiptDate) <= new Date(endDate);
-      });
+      receipts = receipts.filter((r) => new Date(r.receipt_date || r.created_at) <= new Date(endDate));
     }
 
     if (minAmount) {
-      receipts = receipts.filter(r => (r.amount || 0) >= parseFloat(minAmount));
+      receipts = receipts.filter((r) => Number(r.amount || 0) >= parseFloat(minAmount));
     }
 
     if (maxAmount) {
-      receipts = receipts.filter(r => (r.amount || 0) <= parseFloat(maxAmount));
+      receipts = receipts.filter((r) => Number(r.amount || 0) <= parseFloat(maxAmount));
     }
 
     if (search) {
-      receipts = receipts.filter(r => 
-        (r.merchantName?.toLowerCase().includes(search.toLowerCase())) ||
-        (r.notes?.toLowerCase().includes(search.toLowerCase())) ||
-        (r.category?.toLowerCase().includes(search.toLowerCase()))
+      const q = search.toLowerCase();
+      receipts = receipts.filter((r) =>
+        (r.merchant_name || '').toLowerCase().includes(q) ||
+        (r.notes || '').toLowerCase().includes(q) ||
+        (r.category || '').toLowerCase().includes(q)
       );
     }
 
-    // Sort by creation date (newest first)
-    receipts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    // Pagination
     const total = receipts.length;
     const totalPages = Math.ceil(total / limit);
     const start = (page - 1) * limit;
     const paginatedReceipts = receipts.slice(start, start + limit);
 
-    // Add user information to receipts
-    const receiptsWithUsers = paginatedReceipts.map(receipt => {
-      const receiptUser = dataStore.getAppUsers().find(u => u.id === receipt.userId);
-      return {
-        ...receipt,
-        userName: receiptUser?.name || 'Unknown User',
-        userEmail: receiptUser?.email || '',
-      };
-    });
+    const userIds = [...new Set(paginatedReceipts.map((r) => r.user_id).filter(Boolean))] as string[];
+    const { data: receiptUsers } = userIds.length
+      ? await supabaseAdmin.from('users').select('id, name, email').in('id', userIds)
+      : { data: [] as any[] };
+
+    const userMap = new Map((receiptUsers || []).map((u: any) => [u.id, u]));
+
+    const mappedReceipts = paginatedReceipts.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      companyId: r.company_id,
+      imagePath: r.image_path,
+      merchantName: r.merchant_name,
+      amount: r.amount,
+      receiptDate: r.receipt_date,
+      category: r.category,
+      notes: r.notes,
+      status: r.status,
+      emailSentAt: r.email_sent_at,
+      createdAt: r.created_at,
+      userName: userMap.get(r.user_id)?.name || 'Unknown User',
+      userEmail: userMap.get(r.user_id)?.email || '',
+    }));
 
     return NextResponse.json({
-      receipts: receiptsWithUsers,
+      receipts: mappedReceipts,
       pagination: {
         page,
         limit,
@@ -102,18 +106,14 @@ export async function GET(request: NextRequest) {
         hasPrev: page > 1,
       },
       stats: {
-        total: dataStore.getReceiptsByCompany(user.companyId).length,
-        pending: dataStore.getReceiptsByCompany(user.companyId).filter(r => r.status === 'pending').length,
-        processed: dataStore.getReceiptsByCompany(user.companyId).filter(r => r.status === 'processed').length,
-        sent: dataStore.getReceiptsByCompany(user.companyId).filter(r => r.status === 'sent').length,
+        total: (receiptsRaw || []).length,
+        pending: (receiptsRaw || []).filter((r) => r.status === 'pending').length,
+        processed: (receiptsRaw || []).filter((r) => r.status === 'processed').length,
+        sent: (receiptsRaw || []).filter((r) => r.status === 'sent').length,
       },
     });
-
   } catch (error) {
     console.error('Receipts fetch error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

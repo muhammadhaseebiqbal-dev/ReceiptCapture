@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     // Get user from database
     const { data: user, error } = await supabaseAdmin
-      .from('portal_users')
+      .from('users')
       .select('*')
       .eq('email', email)
       .maybeSingle();

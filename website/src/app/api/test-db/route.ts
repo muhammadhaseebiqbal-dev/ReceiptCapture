@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check if we can connect to Supabase
     const { data: tables, error: tablesError } = await supabaseAdmin
-      .from('portal_users')
+      .from('users')
       .select('email, name, role, is_active')
       .limit(5);
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: 'Database error',
         details: tablesError.message,
-        hint: 'Make sure you have run the database_setup_supabase.sql script in Supabase SQL Editor'
+        hint: 'Make sure migrations have been applied for companies/users/receipts/sync_queue'
       }, { status: 500 });
     }
 

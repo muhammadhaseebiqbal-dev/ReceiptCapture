@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 
 // PUT - Update a subscription plan
 export async function PUT(
@@ -8,22 +8,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'master_admin') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+    const authResult = await requireAuth(request, ['master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
     const body = await request.json();
@@ -83,22 +70,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'master_admin') {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+    const authResult = await requireAuth(request, ['master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
     // Check if plan is in use by any companies

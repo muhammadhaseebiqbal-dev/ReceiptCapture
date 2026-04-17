@@ -1,99 +1,110 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dataStore } from '@/lib/data-store';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
+import { supabaseAdmin } from '@/lib/supabase-server';
 import { isValidEmail } from '@/lib/utils';
 
-// GET - Get company settings
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    const authResult = await requireAuth(request, ['company_representative']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const user = dataStore.getUserById(decoded.userId);
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Only company representatives can access their company settings
-    if (user.role !== 'company_representative' || !user.companyId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    const company = dataStore.getCompanyById(user.companyId);
-    if (!company) {
+    const user = authResult.context!.user;
+    if (!user.company_id) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Get subscription plan details
-    let subscriptionPlan = null;
-    if (company.subscriptionPlanId) {
-      subscriptionPlan = dataStore.getSubscriptionPlanById(company.subscriptionPlanId);
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .select('*')
+      .eq('id', user.company_id)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Get usage statistics
-    const staffCount = dataStore.getAppUsersByCompany(user.companyId).length;
-    const activeStaffCount = dataStore.getAppUsersByCompany(user.companyId).filter(u => u.isActive).length;
+    const [{ data: subscriptionPlan }, { count: staffCount }, { count: activeStaffCount }, { count: receiptsThisMonth }] = await Promise.all([
+      company.subscription_plan_id
+        ? supabaseAdmin
+            .from('subscription_plans')
+            .select('*')
+            .eq('id', company.subscription_plan_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null as any }),
+      supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', user.company_id)
+        .in('role', ['manager', 'employee']),
+      supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', user.company_id)
+        .in('role', ['manager', 'employee'])
+        .eq('is_active', true),
+      supabaseAdmin
+        .from('receipts')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', user.company_id)
+        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    ]);
 
     return NextResponse.json({
-      company,
-      subscriptionPlan,
+      company: {
+        id: company.id,
+        name: company.name,
+        domain: company.domain,
+        destinationEmail: company.destination_email,
+        subscriptionPlanId: company.subscription_plan_id,
+        subscriptionStatus: company.subscription_status,
+        subscriptionStartDate: company.subscription_start_date,
+        subscriptionEndDate: company.subscription_end_date,
+        createdAt: company.created_at,
+        updatedAt: company.updated_at,
+      },
+      subscriptionPlan: subscriptionPlan
+        ? {
+            id: subscriptionPlan.id,
+            name: subscriptionPlan.name,
+            description: subscriptionPlan.description,
+            price: subscriptionPlan.price,
+            billingCycle: subscriptionPlan.billing_cycle,
+            maxUsers: subscriptionPlan.max_users,
+            maxReceiptsPerMonth: subscriptionPlan.max_receipts_per_month,
+            features: subscriptionPlan.features || [],
+            isActive: subscriptionPlan.is_active,
+          }
+        : null,
       usage: {
-        staffCount,
-        activeStaffCount,
-        receiptsThisMonth: 156, // Mock data - in real app, calculate from receipts
-        maxUsers: subscriptionPlan?.maxUsers || 0,
-        maxReceipts: subscriptionPlan?.maxReceiptsPerMonth || 0,
-      }
+        staffCount: staffCount || 0,
+        activeStaffCount: activeStaffCount || 0,
+        receiptsThisMonth: receiptsThisMonth || 0,
+        maxUsers: subscriptionPlan?.max_users || 0,
+        maxReceipts: subscriptionPlan?.max_receipts_per_month || 0,
+      },
     });
-
   } catch (error) {
     console.error('Get company settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// PUT - Update company settings
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    const authResult = await requireAuth(request, ['company_representative']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
-    const user = dataStore.getUserById(decoded.userId);
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Only company representatives can update their company settings
-    if (user.role !== 'company_representative' || !user.companyId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    const company = dataStore.getCompanyById(user.companyId);
-    if (!company) {
+    const user = authResult.context!.user;
+    if (!user.company_id) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
     const { name, destinationEmail, domain } = await request.json();
 
-    // Validation
     if (!destinationEmail || !isValidEmail(destinationEmail)) {
       return NextResponse.json({ error: 'Valid destination email is required' }, { status: 400 });
     }
@@ -102,26 +113,36 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Company name must be at least 2 characters' }, { status: 400 });
     }
 
-    // Update company
-    const updates: any = {
-      name: name.trim(),
-      destinationEmail: destinationEmail.toLowerCase(),
-      updatedAt: new Date().toISOString(),
-    };
+    const { data: updatedCompany, error } = await supabaseAdmin
+      .from('companies')
+      .update({
+        name: name.trim(),
+        destination_email: destinationEmail.toLowerCase(),
+        domain: domain?.trim() || null,
+      })
+      .eq('id', user.company_id)
+      .select('*')
+      .single();
 
-    if (domain !== undefined) {
-      updates.domain = domain?.trim() || null;
+    if (error || !updatedCompany) {
+      return NextResponse.json({ error: 'Failed to update company settings' }, { status: 500 });
     }
 
-    dataStore.updateCompany(user.companyId, updates);
-
-    const updatedCompany = dataStore.getCompanyById(user.companyId);
-
     return NextResponse.json({
-      company: updatedCompany,
-      message: 'Company settings updated successfully'
+      company: {
+        id: updatedCompany.id,
+        name: updatedCompany.name,
+        domain: updatedCompany.domain,
+        destinationEmail: updatedCompany.destination_email,
+        subscriptionPlanId: updatedCompany.subscription_plan_id,
+        subscriptionStatus: updatedCompany.subscription_status,
+        subscriptionStartDate: updatedCompany.subscription_start_date,
+        subscriptionEndDate: updatedCompany.subscription_end_date,
+        createdAt: updatedCompany.created_at,
+        updatedAt: updatedCompany.updated_at,
+      },
+      message: 'Company settings updated successfully',
     });
-
   } catch (error) {
     console.error('Update company settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

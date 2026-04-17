@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dataStore } from '@/lib/data-store';
-import { generateToken } from '@/lib/auth';
-import { User, Company } from '@/types';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { generateToken, hashPassword } from '@/lib/auth';
 
 interface RegistrationRequest {
   // Company Information
@@ -39,7 +38,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = dataStore.getUserByEmail(representativeEmail);
+    const { data: existingUser } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('email', representativeEmail)
+      .maybeSingle();
+
     if (existingUser) {
       return NextResponse.json(
         { error: 'A user with this email already exists' },
@@ -48,7 +52,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate subscription plan
-    const subscriptionPlan = dataStore.getSubscriptionPlan(selectedPlanId);
+    const { data: subscriptionPlan, error: planError } = await supabaseAdmin
+      .from('subscription_plans')
+      .select('id, name, billing_cycle')
+      .eq('id', selectedPlanId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (planError) {
+      return NextResponse.json(
+        { error: 'Failed to verify subscription plan' },
+        { status: 500 }
+      );
+    }
+
     if (!subscriptionPlan) {
       return NextResponse.json(
         { error: 'Invalid subscription plan selected' },
@@ -56,63 +73,74 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate IDs
-    const companyId = `company_${Date.now()}`;
-    const userId = `user_${Date.now()}`;
-    const now = new Date().toISOString();
-    
+    const now = new Date();
+
     // Calculate subscription end date (30 days trial)
-    const subscriptionEndDate = new Date();
+    const subscriptionEndDate = new Date(now);
     subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
 
     // Create company
-    const company: Company = {
-      id: companyId,
-      name: companyName,
-      domain: companyDomain,
-      destinationEmail,
-      subscriptionPlanId: selectedPlanId,
-      subscriptionStatus: 'trial', // Start with trial
-      subscriptionStartDate: now,
-      subscriptionEndDate: subscriptionEndDate.toISOString(),
-      createdAt: now,
-    };
+    const { data: company, error: companyError } = await supabaseAdmin
+      .from('companies')
+      .insert({
+        name: companyName,
+        domain: companyDomain || null,
+        destination_email: destinationEmail.toLowerCase(),
+        subscription_plan_id: selectedPlanId,
+        subscription_status: 'trial',
+        subscription_start_date: now.toISOString(),
+        subscription_end_date: subscriptionEndDate.toISOString(),
+      })
+      .select('id, name, destination_email, subscription_status')
+      .single();
+
+    if (companyError || !company) {
+      return NextResponse.json(
+        { error: 'Failed to create company' },
+        { status: 500 }
+      );
+    }
+
+    const passwordHash = await hashPassword(representativePassword);
 
     // Create company representative user
-    const user: User = {
-      id: userId,
-      email: representativeEmail,
-      password: representativePassword, // In production, hash this
-      name: representativeName,
-      role: 'company_representative',
-      companyId,
-      isActive: true,
-      createdAt: now,
-    };
+    const { data: user, error: userCreateError } = await supabaseAdmin
+      .from('users')
+      .insert({
+        email: representativeEmail.toLowerCase(),
+        password_hash: passwordHash,
+        name: representativeName,
+        role: 'company_representative',
+        company_id: company.id,
+        is_active: true,
+      })
+      .select('id, email, name, role, company_id')
+      .single();
 
-    // Save to data store
-    dataStore.addCompany(company);
-    dataStore.addUser(user);
+    if (userCreateError || !user) {
+      return NextResponse.json(
+        { error: 'Failed to create representative account' },
+        { status: 500 }
+      );
+    }
 
-    // Create initial billing entry for trial
-    const billingEntry = {
-      id: `bill_${Date.now()}`,
-      companyId,
-      planId: selectedPlanId,
-      planName: subscriptionPlan.name,
-      amount: 0, // Trial period
-      billingCycle: subscriptionPlan.billingCycle,
-      status: 'paid',
-      billingDate: now,
-      nextBillingDate: subscriptionEndDate.toISOString(),
-      description: `30-day trial for ${subscriptionPlan.name} plan`,
-      createdAt: now,
-    };
-
-    dataStore.addBillingHistory(billingEntry);
+    // Optional billing history write if table exists
+    await supabaseAdmin
+      .from('billing_history')
+      .insert({
+        company_id: company.id,
+        plan_id: selectedPlanId,
+        plan_name: subscriptionPlan.name,
+        amount: 0,
+        billing_cycle: subscriptionPlan.billing_cycle,
+        status: 'paid',
+        billing_date: now.toISOString(),
+        next_billing_date: subscriptionEndDate.toISOString(),
+        description: `30-day trial for ${subscriptionPlan.name} plan`,
+      });
 
     // Generate authentication token
-    const token = generateToken(user.id, user.email, user.role, user.companyId);
+    const token = generateToken(user.id, user.email, user.role, user.company_id);
 
     return NextResponse.json({
       success: true,
@@ -122,13 +150,13 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-        companyId: user.companyId,
+        companyId: user.company_id,
       },
       company: {
         id: company.id,
         name: company.name,
-        destinationEmail: company.destinationEmail,
-        subscriptionStatus: company.subscriptionStatus,
+        destinationEmail: company.destination_email,
+        subscriptionStatus: company.subscription_status,
       },
       token,
       subscriptionPlan: {

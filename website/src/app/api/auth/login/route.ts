@@ -22,40 +22,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find user in Supabase (representatives table)
-    console.log('🔍 Looking up user:', email);
+    // Find user in users table
     const { data: user, error: userError } = await supabaseAdmin
-      .from('representatives')
-      .select('*')
+      .from('users')
+      .select('id, email, password_hash, name, role, company_id, is_active')
       .eq('email', email)
       .maybeSingle();
 
-    console.log('👤 User found:', user ? 'YES' : 'NO');
-    console.log('❌ Error:', userError?.message || 'none');
-
     if (userError || !user) {
-      console.log('⚠️ User not found or error occurred');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    console.log('🔐 User details:', {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      is_active: user.is_active,
-      password_hash_length: user.password_hash?.length || 0
-    });
-
     // Validate password
-    console.log('🔑 Verifying password...');
     const isValidPassword = await verifyPassword(password, user.password_hash);
-    console.log('✅ Password valid:', isValidPassword);
-    
+
     if (!isValidPassword) {
-      console.log('⚠️ Password verification failed');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -77,16 +61,10 @@ export async function POST(request: NextRequest) {
     const userData = {
       id: user.id,
       email: user.email,
-      name: `${user.first_name} ${user.last_name}`,
-      firstName: user.first_name,
-      lastName: user.last_name,
+      name: user.name,
       role: user.role,
       companyId: user.company_id,
-      jobTitle: user.job_title,
       isActive: user.is_active,
-      emailVerified: user.email_verified,
-      verifiedEmail: user.verified_email,
-      isPrimary: user.is_primary
     };
     
     return NextResponse.json({

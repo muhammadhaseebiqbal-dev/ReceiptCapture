@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
-import { verifyToken } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'master_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    const authResult = await requireAuth(request, ['master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
     const body = await request.json();
@@ -29,7 +22,7 @@ export async function PUT(
       subscription_end_date,
     } = body;
 
-    const updateData: any = {};
+    const updateData: Record<string, any> = {};
     if (name !== undefined) updateData.name = name;
     if (destination_email !== undefined) updateData.destination_email = destination_email;
     if (subscription_plan_id !== undefined) updateData.subscription_plan_id = subscription_plan_id;
@@ -41,11 +34,10 @@ export async function PUT(
       .from('companies')
       .update(updateData)
       .eq('id', params.id)
-      .select()
+      .select('*')
       .single();
 
     if (error) {
-      console.error('Database error:', error);
       return NextResponse.json({ error: 'Failed to update company' }, { status: 500 });
     }
 
@@ -61,21 +53,13 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (!token) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    const authResult = await requireAuth(request, ['master_admin']);
+    if (authResult.response) {
+      return authResult.response;
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'master_admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
-    // Check if company has users
     const { count: userCount } = await supabaseAdmin
-      .from('portal_users')
+      .from('users')
       .select('*', { count: 'exact', head: true })
       .eq('company_id', params.id);
 
@@ -92,7 +76,6 @@ export async function DELETE(
       .eq('id', params.id);
 
     if (error) {
-      console.error('Database error:', error);
       return NextResponse.json({ error: 'Failed to delete company' }, { status: 500 });
     }
 
