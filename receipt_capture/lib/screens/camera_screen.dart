@@ -20,22 +20,28 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
   bool _isFlashOn = false;
   bool _showInstructions = true;
+  late AnimationController _scannerAnimationController;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scannerAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     _initializeCamera();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scannerAnimationController.dispose();
     _disposeCamera();
     super.dispose();
   }
@@ -75,11 +81,19 @@ class _CameraScreenState extends State<CameraScreen>
       if (cameras.isNotEmpty && mounted) {
         _cameraController = CameraController(
           cameras.first,
-          ResolutionPreset.high,
+          ResolutionPreset.max, // Upgraded for better OCR/Detection engine
           enableAudio: false,
+          imageFormatGroup: ImageFormatGroup.jpeg,
         );
 
         await _cameraController!.initialize();
+
+        // Enhance auto-detect engine by setting optimal focus & exposure
+        try {
+          await _cameraController!.setFocusMode(FocusMode.auto);
+          await _cameraController!.setExposureMode(ExposureMode.auto);
+        } catch (_) {}
+
         if (mounted) {
           setState(() {
             _isCameraInitialized = true;
@@ -311,9 +325,18 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                   ),
 
-                // Camera overlay with receipt guide
+                // Camera overlay with receipt guide (Animated auto-detect engine UI)
                 Positioned.fill(
-                  child: CustomPaint(painter: ReceiptOverlayPainter()),
+                  child: AnimatedBuilder(
+                    animation: _scannerAnimationController,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        painter: ReceiptOverlayPainter(
+                          animationValue: _scannerAnimationController.value,
+                        ),
+                      );
+                    },
+                  ),
                 ),
 
                 // Bottom controls
@@ -458,33 +481,107 @@ class _CameraScreenState extends State<CameraScreen>
   }
 }
 
-class ReceiptOverlayPainter extends CustomPainter {
+class   ReceiptOverlayPainter extends CustomPainter {
+  final double animationValue;
+
+  ReceiptOverlayPainter({required this.animationValue});
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw center crosshairs only (plus sign)
-    final Paint crosshairPaint = Paint()
-      ..color = Colors.white.withOpacity(0.7)
+    // Determine the scanning area
+    final double margin = size.width * 0.1;
+    final Rect scanRect = Rect.fromLTRB(
+      margin,
+      margin * 3,
+      size.width - margin,
+      size.height - margin * 3.5,
+    );
+
+    // Dim the surrounding area
+    final Paint darkOverlay = Paint()
+      ..color = Colors.black.withOpacity(0.55);
+    final Path backgroundPath = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    final Path scanAreaPath = Path()..addRRect(RRect.fromRectAndRadius(scanRect, const Radius.circular(16)));
+    canvas.drawPath(
+      Path.combine(PathOperation.difference, backgroundPath, scanAreaPath),
+      darkOverlay,
+    );
+
+    // Draw the active auto-detect bounding box corners
+    final Paint edgePaint = Paint()
+      ..color = Colors.greenAccent
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 4.0;
 
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    const double crosshairLength = 25.0;
-
-    // Draw horizontal line
-    canvas.drawLine(
-      Offset(center.dx - crosshairLength, center.dy),
-      Offset(center.dx + crosshairLength, center.dy),
-      crosshairPaint,
+    const double cornerLength = 30.0;
+    
+    // Top-left corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(scanRect.left, scanRect.top + cornerLength)
+        ..lineTo(scanRect.left, scanRect.top)
+        ..lineTo(scanRect.left + cornerLength, scanRect.top),
+      edgePaint,
     );
 
-    // Draw vertical line
-    canvas.drawLine(
-      Offset(center.dx, center.dy - crosshairLength),
-      Offset(center.dx, center.dy + crosshairLength),
-      crosshairPaint,
+    // Top-right corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(scanRect.right - cornerLength, scanRect.top)
+        ..lineTo(scanRect.right, scanRect.top)
+        ..lineTo(scanRect.right, scanRect.top + cornerLength),
+      edgePaint,
     );
+
+    // Bottom-left corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(scanRect.left, scanRect.bottom - cornerLength)
+        ..lineTo(scanRect.left, scanRect.bottom)
+        ..lineTo(scanRect.left + cornerLength, scanRect.bottom),
+      edgePaint,
+    );
+
+    // Bottom-right corner
+    canvas.drawPath(
+      Path()
+        ..moveTo(scanRect.right - cornerLength, scanRect.bottom)
+        ..lineTo(scanRect.right, scanRect.bottom)
+        ..lineTo(scanRect.right, scanRect.bottom - cornerLength),
+      edgePaint,
+    );
+
+    // Draw scanning laser
+    final Paint laserPaint = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final double laserY = scanRect.top + (scanRect.height * animationValue);
+    canvas.drawLine(
+      Offset(scanRect.left + 5, laserY),
+      Offset(scanRect.right - 5, laserY),
+      laserPaint,
+    );
+
+    // Draw a subtle glow for the laser
+    final Paint laserGlow = Paint()
+      ..color = Colors.greenAccent.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    
+    final Path glowPath = Path()
+      ..addOval(Rect.fromLTRB(
+        scanRect.left + 5,
+        laserY - 10,
+        scanRect.right - 5,
+        laserY + 2,
+      ));
+    
+    canvas.drawPath(glowPath, laserGlow);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant ReceiptOverlayPainter oldDelegate) {
+    return oldDelegate.animationValue != this.animationValue;
+  }
 }

@@ -62,7 +62,9 @@ export default function ReceiptsPage() {
     }
 
     const user = JSON.parse(userStr);
-    if (user.role !== 'company_representative') {
+    // Allow primary_representative, representative, or company_representative roles
+    const allowedRoles = ['primary_representative', 'representative', 'company_representative'];
+    if (!allowedRoles.includes(user.role)) {
       router.push('/login');
       return;
     }

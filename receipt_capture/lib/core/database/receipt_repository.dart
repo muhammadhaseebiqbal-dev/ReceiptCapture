@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database_helper.dart';
 import '../database/models.dart';
+import '../services/app_preferences_service.dart';
 import '../services/encryption_service.dart';
 
 class ReceiptRepository {
@@ -15,14 +16,14 @@ class ReceiptRepository {
 
   Future<String> createReceipt(Receipt receipt) async {
     final db = await _databaseHelper.database;
+    final shouldEncrypt = await AppPreferencesService.isDataEncryptionEnabled();
 
     try {
       await db.transaction((txn) async {
-        // Encrypt sensitive data before storing
-        final encryptedData = _encryptionService.encryptReceiptData(
-          receipt.toMap(),
-        );
-        final receiptWithEncryption = Receipt.fromMap(encryptedData);
+        final dataToStore = shouldEncrypt
+            ? _encryptionService.encryptReceiptData(receipt.toMap())
+            : receipt.toMap();
+        final receiptWithEncryption = Receipt.fromMap(dataToStore);
 
         await txn.insert(
           DatabaseHelper.tableReceipts,
@@ -126,14 +127,14 @@ class ReceiptRepository {
 
   Future<void> updateReceipt(Receipt receipt) async {
     final db = await _databaseHelper.database;
+    final shouldEncrypt = await AppPreferencesService.isDataEncryptionEnabled();
 
     try {
       await db.transaction((txn) async {
-        // Encrypt sensitive data before storing
-        final encryptedData = _encryptionService.encryptReceiptData(
-          receipt.toMap(),
-        );
-        final receiptWithEncryption = Receipt.fromMap(encryptedData);
+        final dataToStore = shouldEncrypt
+            ? _encryptionService.encryptReceiptData(receipt.toMap())
+            : receipt.toMap();
+        final receiptWithEncryption = Receipt.fromMap(dataToStore);
 
         await txn.update(
           DatabaseHelper.tableReceipts,

@@ -42,71 +42,79 @@ export default function AdminPage() {
 
   const loadAdminData = async (user: User) => {
     try {
-      // Simulate API calls with mock data
+      const token = localStorage.getItem('token');
+      
+      // Fetch admin statistics
+      const statsResponse = await fetch('/api/admin/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let stats = {
+        totalCompanies: 0,
+        activeCompanies: 0,
+        trialCompanies: 0,
+        totalUsers: 0,
+        monthlyRevenue: 0,
+        activePlans: 0,
+      };
+      
+      if (statsResponse.ok) {
+        stats = await statsResponse.json();
+      }
+      
+      // Fetch companies
+      const companiesResponse = await fetch('/api/companies', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let companies: Company[] = [];
+      if (companiesResponse.ok) {
+        const companiesData = await companiesResponse.json();
+        companies = companiesData.map((company: any) => ({
+          id: company.id,
+          name: company.name,
+          destinationEmail: company.destination_email,
+          subscriptionStatus: company.subscription_status,
+          subscriptionStartDate: company.subscription_start_date,
+          createdAt: company.created_at,
+        }));
+      }
+      
+      // Fetch subscription plans
+      const plansResponse = await fetch('/api/subscription-plans', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      let subscriptionPlans: SubscriptionPlan[] = [];
+      if (plansResponse.ok) {
+        const plansData = await plansResponse.json();
+        subscriptionPlans = plansData.map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          price: plan.price,
+          billingCycle: plan.billing_cycle,
+          maxUsers: plan.max_users,
+          maxReceiptsPerMonth: plan.max_receipts_per_month,
+          features: Object.entries(plan.features || {}).map(([key, value]) => 
+            typeof value === 'boolean' ? key : `${key}: ${value}`
+          ),
+          isActive: plan.is_active,
+        }));
+      }
+
       const adminData: AdminData = {
         user,
-        companies: [
-          {
-            id: '1',
-            name: 'Tech Corp Ltd',
-            destinationEmail: 'invoices@techcorp.com',
-            subscriptionStatus: 'active',
-            subscriptionStartDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '2', 
-            name: 'Marketing Inc',
-            destinationEmail: 'receipts@marketing.com',
-            subscriptionStatus: 'trial',
-            subscriptionStartDate: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: '3',
-            name: 'Startup LLC',
-            destinationEmail: 'billing@startup.com',
-            subscriptionStatus: 'inactive',
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        subscriptionPlans: [
-          {
-            id: '1',
-            name: 'Starter',
-            description: 'Perfect for small teams',
-            price: 29.99,
-            billingCycle: 'monthly',
-            maxUsers: 5,
-            maxReceiptsPerMonth: 100,
-            features: ['Email Support', '1GB Storage'],
-            isActive: true,
-          },
-          {
-            id: '2',
-            name: 'Professional', 
-            description: 'Growing businesses',
-            price: 59.99,
-            billingCycle: 'monthly',
-            maxUsers: 20,
-            maxReceiptsPerMonth: 500,
-            features: ['Priority Support', '10GB Storage', 'Analytics'],
-            isActive: true,
-          },
-          {
-            id: '3',
-            name: 'Enterprise',
-            description: 'Large organizations', 
-            price: 149.99,
-            billingCycle: 'monthly',
-            maxUsers: 100,
-            maxReceiptsPerMonth: 2000,
-            features: ['Phone Support', 'Unlimited Storage', 'API Access'],
-            isActive: true,
-          },
-        ],
-        totalRevenue: 15420.50,
-        totalUsers: 87,
+        companies,
+        subscriptionPlans,
+        totalRevenue: stats.monthlyRevenue,
+        totalUsers: stats.totalUsers,
       };
 
       setData(adminData);
@@ -251,7 +259,7 @@ export default function AdminPage() {
                   </span>
                 </div>
               ))}
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => router.push('/admin/companies')}>
                 <Building className="h-4 w-4 mr-2" />
                 Manage Companies
               </Button>
@@ -280,7 +288,7 @@ export default function AdminPage() {
                   </span>
                 </div>
               ))}
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => router.push('/admin/plans')}>
                 <CreditCard className="h-4 w-4 mr-2" />
                 Manage Plans
               </Button>

@@ -54,6 +54,8 @@ class ReceiptCaptureApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeState.themeMode,
+            themeAnimationDuration: Duration.zero,
+            themeAnimationCurve: Curves.linear,
             debugShowCheckedModeBanner: false,
             home: const AuthWrapper(),
           );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataStore } from '@/lib/data-store';
-import { authService } from '@/lib/auth';
+import { generateToken } from '@/lib/auth';
 import { User, Company } from '@/types';
 
 interface RegistrationRequest {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     dataStore.addBillingHistory(billingEntry);
 
     // Generate authentication token
-    const token = authService.generateToken(user);
+    const token = generateToken(user.id, user.email, user.role, user.companyId);
 
     return NextResponse.json({
       success: true,

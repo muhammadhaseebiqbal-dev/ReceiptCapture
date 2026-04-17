@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'receipt_capture.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
 
   static const tableReceipts = 'receipts';
   static const tableSyncQueue = 'sync_queue';
@@ -65,8 +65,10 @@ class DatabaseHelper {
     try {
       await db.rawQuery('PRAGMA journal_mode = WAL');
       await db.rawQuery('PRAGMA synchronous = NORMAL');
-      await db.rawQuery('PRAGMA cache_size = 10000');
-      await db.rawQuery('PRAGMA temp_store = memory');
+      await db.rawQuery('PRAGMA cache_size = -20000'); // Use 20MB cache
+      await db.rawQuery('PRAGMA temp_store = MEMORY');
+      await db.rawQuery('PRAGMA mmap_size = 30000000000'); // Use memory mapping for speed
+      await db.rawQuery('PRAGMA page_size = 4096'); // Modern page size
       print('=== DATABASE: Performance optimizations applied successfully');
     } catch (e) {
       print('=== DATABASE: Could not apply all optimizations: $e');
@@ -121,6 +123,14 @@ class DatabaseHelper {
     await db.execute('''
       CREATE INDEX idx_sync_queue_status ON $tableSyncQueue ($columnStatus)
     ''');
+
+    await db.execute('''
+      CREATE INDEX idx_receipts_created_at ON $tableReceipts ($columnCreatedAt)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_receipts_deleted_at ON $tableReceipts ($columnDeletedAt)
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -135,6 +145,15 @@ class DatabaseHelper {
       // Add pdf_path column for PDF generation
       await db.execute('''
         ALTER TABLE $tableReceipts ADD COLUMN $columnPdfPath TEXT
+      ''');
+    }
+    if (oldVersion < 4) {
+      // Added new performance indexes
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_receipts_created_at ON $tableReceipts ($columnCreatedAt)
+      ''');
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_receipts_deleted_at ON $tableReceipts ($columnDeletedAt)
       ''');
     }
   }

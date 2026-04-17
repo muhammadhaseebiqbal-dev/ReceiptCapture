@@ -12,7 +12,10 @@ import '../features/theme/bloc/theme_state.dart';
 import '../core/models/user.dart';
 import '../core/services/sync_service.dart';
 import '../core/database/receipt_repository.dart';
+import 'data_encryption_settings_screen.dart';
+import 'notifications_settings_screen.dart';
 import 'sync_settings_screen.dart';
+import 'terms_of_service_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -48,123 +51,87 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        centerTitle: false,
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: Colors.grey[300], height: 0.5),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, authState) {
           final user = authState is AuthAuthenticated ? authState.user : null;
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacingM,
-              vertical: AppTheme.spacingL,
-            ),
-            children: [
-              // User Profile Section
-              if (user != null) ...[
-                _buildUserProfile(context, user),
-                const SizedBox(height: AppTheme.spacingXL),
+          return SafeArea(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                AppTheme.spacingM,
+                120,
+              ),
+              children: [
+                _buildTopHeader(context),
+                if (user != null) ...[
+                  const SizedBox(height: AppTheme.spacingL),
+                  _buildUserProfile(context, user),
+                ],
+                const SizedBox(height: AppTheme.spacingL),
+                _buildSettingsSection(
+                  title: 'Receipt Management',
+                  children: [
+                    _buildSyncSettingsTile(),
+                    _buildDivider(context),
+                    _buildSettingsTile(
+                      icon: Icons.security_outlined,
+                      title: 'Data Encryption',
+                      subtitle: 'Manage data security settings',
+                      onTap: _openEncryptionSettings,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingL),
+                _buildSettingsSection(
+                  title: 'App Settings',
+                  children: [
+                    BlocBuilder<ThemeBloc, ThemeState>(
+                      builder: (context, themeState) {
+                        return _buildSettingsTile(
+                          icon: Icons.palette_outlined,
+                          title: 'Theme',
+                          subtitle: _themeModeLabel(themeState.themeMode),
+                          onTap: () =>
+                              _showThemeDialog(context, themeState.themeMode),
+                        );
+                      },
+                    ),
+                    _buildDivider(context),
+                    _buildSettingsTile(
+                      icon: Icons.notifications_outlined,
+                      title: 'Notifications',
+                      subtitle: 'Configure app notifications',
+                      onTap: _openNotificationSettings,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppTheme.spacingL),
+                _buildSettingsSection(
+                  title: 'About',
+                  children: [
+                    _buildSettingsTile(
+                      icon: Icons.info_outlined,
+                      title: 'App Info',
+                      subtitle: 'Version 1.0.0',
+                      onTap: () {
+                        _showAboutDialog(context);
+                      },
+                    ),
+                    _buildDivider(context),
+                    _buildSettingsTile(
+                      icon: Icons.description_outlined,
+                      title: 'Terms of Service',
+                      subtitle: 'View terms of service',
+                      onTap: _openTermsOfService,
+                    ),
+                  ],
+                ),
               ],
-              _buildSettingsSection(
-                title: 'Receipt Management',
-                children: [
-                  _buildSyncSettingsTile(),
-                  _buildDivider(context),
-                  _buildSettingsTile(
-                    icon: Icons.security_outlined,
-                    title: 'Data Encryption',
-                    subtitle: 'Manage data security settings',
-                    onTap: () {
-                      // TODO: Implement encryption settings
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: AppTheme.spacingXL),
-
-              _buildSettingsSection(
-                title: 'App Settings',
-                children: [
-                  BlocBuilder<ThemeBloc, ThemeState>(
-                    builder: (context, themeState) {
-                      String subtitle;
-                      switch (themeState.themeMode) {
-                        case ThemeMode.light:
-                          subtitle = 'Light mode';
-                          break;
-                        case ThemeMode.dark:
-                          subtitle = 'Dark mode';
-                          break;
-                        default:
-                          subtitle = 'System default';
-                      }
-
-                      return _buildSettingsTile(
-                        icon: Icons.palette_outlined,
-                        title: 'Theme',
-                        subtitle: subtitle,
-                        onTap: () =>
-                            _showThemeDialog(context, themeState.themeMode),
-                      );
-                    },
-                  ),
-                  _buildDivider(context),
-                  _buildSettingsTile(
-                    icon: Icons.notifications_outlined,
-                    title: 'Notifications',
-                    subtitle: 'Configure app notifications',
-                    onTap: () {
-                      // TODO: Implement notification settings
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: AppTheme.spacingXL),
-
-              _buildSettingsSection(
-                title: 'About',
-                children: [
-                  _buildSettingsTile(
-                    icon: Icons.info_outlined,
-                    title: 'App Info',
-                    subtitle: 'Version 1.0.0',
-                    onTap: () {
-                      _showAboutDialog(context);
-                    },
-                  ),
-                  _buildDivider(context),
-                  _buildSettingsTile(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Privacy Policy',
-                    subtitle: 'View privacy policy',
-                    onTap: () {
-                      // TODO: Implement privacy policy
-                    },
-                  ),
-                  _buildDivider(context),
-                  _buildSettingsTile(
-                    icon: Icons.description_outlined,
-                    title: 'Terms of Service',
-                    subtitle: 'View terms of service',
-                    onTap: () {
-                      // TODO: Implement terms of service
-                    },
-                  ),
-                ],
-              ),
-
-              // Extra bottom margin to avoid navigation bar overlap
-              const SizedBox(height: 120),
-            ],
+            ),
           );
         },
       ),
@@ -175,6 +142,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required List<Widget> children,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -183,38 +152,230 @@ class _SettingsScreenState extends State<SettingsScreen> {
             left: AppTheme.spacingS,
             bottom: AppTheme.spacingS,
           ),
-          child: Row(
+          child: Text(
+            title.toUpperCase(),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withOpacity(0.82),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: colorScheme.outline.withOpacity(0.15),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Column(children: children),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasPendingSync = _pendingSyncCount > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingL),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colorScheme.primary.withOpacity(0.18),
+            colorScheme.secondary.withOpacity(0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Container(
-                width: 4,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(2),
+              Expanded(
+                child: Text(
+                  'Settings',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: hasPendingSync
+                      ? AppTheme.warningColor.withOpacity(0.16)
+                      : AppTheme.successColor.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  hasPendingSync
+                      ? '$_pendingSyncCount pending'
+                      : 'Everything synced',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: hasPendingSync
+                        ? AppTheme.warningColor
+                        : AppTheme.successColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Manage your account, synchronization, and app preferences.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: BlocBuilder<ThemeBloc, ThemeState>(
+            builder: (context, themeState) {
+              return _buildQuickActionCard(
+                icon: Icons.palette_outlined,
+                title: 'Theme',
+                subtitle: _themeModeLabel(themeState.themeMode),
+                color: AppTheme.primaryColor,
+                onTap: () => _showThemeDialog(context, themeState.themeMode),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: AppTheme.spacingM),
+        Expanded(
+          child: _buildQuickActionCard(
+            icon: Icons.cloud_sync_outlined,
+            title: 'Sync',
+            subtitle: _pendingSyncCount > 0
+                ? '$_pendingSyncCount receipts waiting'
+                : 'All receipts synced',
+            color: _pendingSyncCount > 0
+                ? AppTheme.warningColor
+                : AppTheme.successColor,
+            onTap: _openSyncSettings,
+            badgeText: _pendingSyncCount > 0 ? '$_pendingSyncCount' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+    String? badgeText,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const Spacer(),
+                  if (badgeText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          inherit: true,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
               Text(
                 title,
-                style: AppTheme.titleMedium.copyWith(
-                  color: AppTheme.primaryColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  letterSpacing: 0.5,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(children: children),
-        ),
-      ],
+      ),
     );
+  }
+
+  String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Light mode';
+      case ThemeMode.dark:
+        return 'Dark mode';
+      case ThemeMode.system:
+        return 'System default';
+    }
   }
 
   Widget _buildUserProfile(BuildContext context, User user) {
@@ -280,7 +441,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             fontSize: 32,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            inherit: false,
+                            inherit: true,
                           ),
                         ),
                       ),
@@ -368,7 +529,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
                                       letterSpacing: 0.5,
-                                      inherit: false,
+                                      inherit: true,
                                     ),
                                   ),
                                 ],
@@ -670,13 +831,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDivider(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Divider(
       height: 1,
-      thickness: 0.5,
-      color: isDark
-          ? Colors.grey[800]?.withOpacity(0.3)
-          : Colors.grey[300]?.withOpacity(0.5),
+      thickness: 0.6,
+      indent: AppTheme.spacingM + 52,
+      endIndent: AppTheme.spacingM,
+      color: Theme.of(context).colorScheme.outline.withOpacity(0.14),
     );
   }
 
@@ -686,6 +846,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -702,12 +864,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor.withOpacity(0.14),
+                      AppTheme.secondaryColor.withOpacity(0.14),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.2),
+                  ),
                 ),
-                child: Icon(icon, color: AppTheme.primaryColor, size: 22),
+                child: Icon(icon, color: AppTheme.primaryColor, size: 20),
               ),
               const SizedBox(width: AppTheme.spacingM),
               Expanded(
@@ -725,14 +898,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Text(
                       subtitle,
                       style: AppTheme.bodySmall.copyWith(
-                        color: Colors.grey[600],
+                        color: colorScheme.onSurfaceVariant,
                         fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -746,26 +932,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle = '$_pendingSyncCount receipts pending sync';
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
+    final tileColor = _pendingSyncCount > 0
+        ? AppTheme.warningColor
+        : AppTheme.primaryColor;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () async {
-          HapticFeedback.selectionClick();
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const SyncSettingsScreen()),
-          );
-
-          // Refresh sync count when returning from sync settings
-          if (result == true && _syncService != null) {
-            final count = await _syncService!.getPendingSyncCount();
-            if (mounted) {
-              setState(() {
-                _pendingSyncCount = count;
-              });
-            }
-          }
-        },
+        onTap: _openSyncSettings,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -775,19 +950,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: _pendingSyncCount > 0
-                      ? AppTheme.warningColor.withOpacity(0.1)
-                      : AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: tileColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: tileColor.withOpacity(0.22)),
                 ),
                 child: Icon(
                   Icons.cloud_sync_outlined,
-                  color: _pendingSyncCount > 0
-                      ? AppTheme.warningColor
-                      : AppTheme.primaryColor,
-                  size: 22,
+                  color: tileColor,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: AppTheme.spacingM),
@@ -808,11 +981,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: AppTheme.bodySmall.copyWith(
                         color: _pendingSyncCount > 0
                             ? AppTheme.warningColor
-                            : Colors.grey[600],
+                            : colorScheme.onSurfaceVariant,
                         fontSize: 13,
-                        fontWeight: _pendingSyncCount > 0
-                            ? FontWeight.w500
-                            : FontWeight.normal,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -821,19 +992,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (_pendingSyncCount > 0) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 9,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: AppTheme.warningColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.warningColor.withOpacity(0.3),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     '$_pendingSyncCount',
@@ -841,17 +1005,75 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      inherit: false,
+                      inherit: true,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
-              Icon(Icons.chevron_right, color: Colors.grey[400]),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceVariant.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _openSyncSettings() async {
+    HapticFeedback.selectionClick();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SyncSettingsScreen()),
+    );
+
+    // Refresh sync count when returning from sync settings
+    if (result == true && _syncService != null) {
+      final count = await _syncService!.getPendingSyncCount();
+      if (mounted) {
+        setState(() {
+          _pendingSyncCount = count;
+        });
+      }
+    }
+  }
+
+  Future<void> _openNotificationSettings() async {
+    HapticFeedback.selectionClick();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationsSettingsScreen(),
+      ),
+    );
+  }
+
+  Future<void> _openEncryptionSettings() async {
+    HapticFeedback.selectionClick();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const DataEncryptionSettingsScreen(),
+      ),
+    );
+  }
+
+  Future<void> _openTermsOfService() async {
+    HapticFeedback.selectionClick();
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TermsOfServiceScreen()),
     );
   }
 

@@ -1,0 +1,218 @@
+# Landing Page Visual Structure
+
+## Page Layout
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     NAVIGATION BAR                          │
+│  Receipt Capture Logo    |    Sign In  |  Get Started      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                      HERO SECTION                           │
+│                                                             │
+│         ⭐ Trusted by 1000+ Companies                      │
+│                                                             │
+│            Simplify Your Receipt Management                │
+│                                                             │
+│     Capture, process, and manage receipts effortlessly     │
+│                                                             │
+│     [Start Free Trial]  [View Pricing]                     │
+│                                                             │
+│     10M+ Receipts  |  99.9% Uptime  |  24/7 Support       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   FEATURES SECTION                          │
+│                                                             │
+│            Everything You Need                              │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
+│  │ 📝 Smart │  │ ✉️ Auto  │  │ 📊 Analy │               │
+│  │ Capture  │  │ Email    │  │ tics     │               │
+│  └──────────┘  └──────────┘  └──────────┘               │
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
+│  │ 👥 Team  │  │ 🔒 Secure│  │ ☁️ Cloud │               │
+│  │ Manage   │  │ Compliant│  │ Storage  │               │
+│  └──────────┘  └──────────┘  └──────────┘               │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                 HOW IT WORKS SECTION                        │
+│                                                             │
+│              Get started in three simple steps              │
+│                                                             │
+│     ①                  ②                  ③               │
+│  📱 Capture         ⚡ AI Process      ✉️ Auto Deliver    │
+│  Take photo         Extract data       Send to email       │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                   PRICING SECTION                           │
+│                                                             │
+│          Simple, Transparent Pricing                        │
+│                                                             │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐                   │
+│  │ Starter │  │ ⭐ Pro  │  │Enterprse│                   │
+│  │ $29.99  │  │ $59.99  │  │ $149.99 │                   │
+│  │  /month │  │ /month  │  │ /month  │                   │
+│  │         │  │         │  │         │                   │
+│  │ ✓ 5 usr │  │ ✓20 usr │  │✓100 usr │                   │
+│  │ ✓ 100 r │  │ ✓500 r  │  │✓2000 r  │                   │
+│  │ ✓ Email │  │ ✓ Prior │  │✓ Phone  │                   │
+│  │ ✓ 1GB   │  │ ✓ 10GB  │  │✓ Unlim  │                   │
+│  │         │  │ ✓ Anlytc│  │✓ API    │                   │
+│  │         │  │ ✓ Export│  │✓ Custom │                   │
+│  │         │  │         │  │✓ Acct M │                   │
+│  │         │  │         │  │✓ SLA    │                   │
+│  │         │  │         │  │         │                   │
+│  │[Get Std]│  │[Get Std]│  │[Get Std]│                   │
+│  └─────────┘  └─────────┘  └─────────┘                   │
+│                   ⬆️ Most Popular                          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                      CTA SECTION                            │
+│                                                             │
+│       Ready to Transform Your Receipt Management?          │
+│                                                             │
+│         Join thousands of companies already using          │
+│                    Receipt Capture                          │
+│                                                             │
+│              [Start Your Free Trial]                        │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                        FOOTER                               │
+│                                                             │
+│  Receipt Capture    Product    Company    Support          │
+│  Modern receipt     Features   About      Help Center      │
+│  management         Pricing    Blog       Contact          │
+│                     Mobile     Careers    Privacy          │
+│                                                             │
+│            © 2025 Receipt Capture. All rights reserved.    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Login Page Layout
+
+```
+Desktop View:
+┌─────────────────────────────────────────────────────────────┐
+│              LEFT SIDE              │     RIGHT SIDE        │
+│          (Login Form)               │  (Feature Highlights) │
+│                                     │                       │
+│  ← Back to Home                     │  Streamline Your     │
+│                                     │  Receipt Management   │
+│  ┌──────────────────────┐          │                       │
+│  │   📝 Receipt Icon    │          │  ✓ Instant Capture   │
+│  │                      │          │  ✓ Auto Processing    │
+│  │   Welcome Back       │          │  ✓ Team Collab        │
+│  │   Selected: Pro      │          │  ✓ Secure             │
+│  │                      │          │                       │
+│  │  Email: [________]   │          │  ┌─────────────────┐ │
+│  │  Pass:  [________]   │          │  │ "Receipt Capture│ │
+│  │                      │          │  │  has transformed│ │
+│  │  [Sign In Button]    │          │  │  how we manage  │ │
+│  │                      │          │  │  expenses..."   │ │
+│  │  ───── Or ─────      │          │  │                 │ │
+│  │                      │          │  │  - Sarah J.     │ │
+│  │  Don't have account? │          │  │  Finance Mgr    │ │
+│  │  [Register Company]  │          │  └─────────────────┘ │
+│  │                      │          │                       │
+│  │  Try Demo Accounts   │          │                       │
+│  │  ┌─────────────────┐│          │                       │
+│  │  │ Master Admin    ││          │                       │
+│  │  │ admin@rc.com    ││          │                       │
+│  │  └─────────────────┘│          │                       │
+│  │  ┌─────────────────┐│          │                       │
+│  │  │ Company Rep     ││          │                       │
+│  │  │ rep@tech.com    ││          │                       │
+│  │  └─────────────────┘│          │                       │
+│  │                      │          │                       │
+│  │  🔒 Secure & Encryptd│          │                       │
+│  └──────────────────────┘          │                       │
+└─────────────────────────────────────────────────────────────┘
+
+Mobile View:
+┌──────────────────────┐
+│  ← Back to Home      │
+│                      │
+│  ┌────────────────┐  │
+│  │ 📝 Icon        │  │
+│  │                │  │
+│  │ Welcome Back   │  │
+│  │                │  │
+│  │ [Email]        │  │
+│  │ [Password]     │  │
+│  │                │  │
+│  │ [Sign In]      │  │
+│  │                │  │
+│  │ ─── Or ───     │  │
+│  │                │  │
+│  │ [Register]     │  │
+│  │                │  │
+│  │ Demo Accounts  │  │
+│  │ [Admin Demo]   │  │
+│  │ [Rep Demo]     │  │
+│  └────────────────┘  │
+│                      │
+│  🔒 Secure           │
+└──────────────────────┘
+```
+
+## Color Scheme
+
+- **Primary**: Used for CTAs, important buttons, icons
+- **Secondary**: Used for badges, less prominent elements
+- **Muted**: Used for descriptions, secondary text
+- **Background**: White (light) / Dark gray (dark mode)
+- **Destructive**: Red for errors
+
+## Interactive Elements
+
+1. **Navigation "Get Started"** → `/login`
+2. **Hero "Start Free Trial"** → `/login`
+3. **Hero "View Pricing"** → Scrolls to pricing section
+4. **Each Pricing Card "Get Started"** → `/login` (saves plan)
+5. **CTA "Start Your Free Trial"** → `/login`
+6. **Login "Back to Home"** → `/`
+7. **Login "Register"** → `/register`
+8. **Login Demo Buttons** → Auto-fills credentials
+
+## Responsive Breakpoints
+
+- **Mobile**: < 768px
+  - Single column layout
+  - Stacked cards
+  - Compact navigation
+  
+- **Tablet**: 768px - 1024px
+  - 2 column grid for features
+  - 2 column for pricing (3rd wraps)
+  
+- **Desktop**: > 1024px
+  - 3 column grid
+  - Side-by-side login layout
+  - Full navigation
+
+## Icons Used
+
+- Receipt (Logo)
+- Mail (Email delivery)
+- Users (Team management)
+- BarChart3 (Analytics)
+- Shield (Security)
+- Cloud (Storage)
+- Zap (Speed/AI)
+- Clock (Time)
+- Check (Feature lists)
+- ArrowRight (CTAs)
+- Star (Popular badge)
+- Smartphone (Mobile capture)
+- Eye/EyeOff (Password visibility)
+- Lock (Password field)
+- Loader2 (Loading state)
+- ArrowLeft (Back navigation)
+- CheckCircle2 (Feature highlights)

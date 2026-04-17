@@ -1,46 +1,40 @@
-import { User } from '@/types';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-export interface AuthResult {
-  success: boolean;
-  user?: User;
-  error?: string;
+// Hash password
+export async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(12);
+  return bcrypt.hash(password, salt);
 }
 
-export class AuthService {
-  // Simple password validation (in production, use bcrypt)
-  validatePassword(plainPassword: string, hashedPassword: string): boolean {
-    // For demo purposes, comparing plain text
-    // In production: return bcrypt.compare(plainPassword, hashedPassword)
-    return plainPassword === hashedPassword;
-  }
-
-  // Generate simple session token (in production, use JWT)
-  generateToken(user: User): string {
-    return btoa(JSON.stringify({ 
-      userId: user.id, 
-      email: user.email, 
-      role: user.role,
-      timestamp: Date.now() 
-    }));
-  }
-
-  // Validate and decode token
-  validateToken(token: string): { userId: string; email: string; role: string } | null {
-    try {
-      const decoded = JSON.parse(atob(token));
-      // Simple expiration check (24 hours)
-      const isExpired = Date.now() - decoded.timestamp > 24 * 60 * 60 * 1000;
-      if (isExpired) return null;
-      return decoded;
-    } catch {
-      return null;
-    }
-  }
+// Verify password
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(password, hashedPassword);
 }
 
-export const authService = new AuthService();
+// Generate JWT token
+export function generateToken(userId: string, email: string, role: string, companyId?: string | null): string {
+  const secret = process.env.JWT_SECRET || 'receipt-capture-secret-change-in-production-2025';
+  
+  return jwt.sign(
+    {
+      userId,
+      email,
+      role,
+      companyId
+    },
+    secret,
+    { expiresIn: '7d' }
+  );
+}
 
-// Export verifyToken as a standalone function for API routes
-export function verifyToken(token: string): { userId: string; email: string; role: string } | null {
-  return authService.validateToken(token);
+// Verify JWT token
+export function verifyToken(token: string): any {
+  const secret = process.env.JWT_SECRET || 'receipt-capture-secret-change-in-production-2025';
+  
+  try {
+    return jwt.verify(token, secret);
+  } catch (error) {
+    return null;
+  }
 }

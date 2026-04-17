@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authService } from '@/lib/auth';
+import { verifyToken } from '@/lib/auth';
 import { dataStore } from '@/lib/data-store';
 
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = authService.validateToken(token);
+    const decoded = verifyToken(token);
     if (!decoded) {
       return NextResponse.json(
         { error: 'Invalid or expired token' },
