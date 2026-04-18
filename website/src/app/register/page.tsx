@@ -196,18 +196,41 @@ export default function RegisterPage() {
     setError('');
 
     try {
+      const registerPayload = {
+        ...formData,
+      };
+
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(registerPayload),
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: any = null;
+      try {
+        result = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        result = { error: responseText || 'Registration failed' };
+      }
 
       if (!response.ok) {
-        throw new Error(result.error || 'Registration failed');
+        const backendMessage = result?.error || result?.message || 'Registration failed';
+        const debugPayload = {
+          ...registerPayload,
+          representativePassword: '[REDACTED]',
+          confirmPassword: '[REDACTED]',
+        };
+
+        console.error('Registration request failed', {
+          status: response.status,
+          message: backendMessage,
+          payload: debugPayload,
+        });
+
+        throw new Error(`Registration failed (${response.status}): ${backendMessage}`);
       }
 
       const token = result?.token as string | undefined;

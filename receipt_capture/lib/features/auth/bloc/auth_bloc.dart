@@ -23,9 +23,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _authService.initialize();
       
       if (_authService.isLoggedIn && _authService.currentUser != null) {
+        final token = await _authService.getStoredToken();
+        if (token == null || token.isEmpty) {
+          await _authService.logout();
+          emit(AuthUnauthenticated());
+          return;
+        }
+
         emit(AuthAuthenticated(
           user: _authService.currentUser!,
-          token: 'mock_token', // In real app, get from secure storage
+          token: token,
         ));
       } else {
         emit(AuthUnauthenticated());

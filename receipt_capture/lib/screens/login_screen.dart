@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../core/config/app_endpoints.dart';
 import '../features/auth/bloc/auth_bloc.dart';
 import '../features/auth/bloc/auth_event.dart';
 import '../features/auth/bloc/auth_state.dart';
@@ -130,6 +132,20 @@ class _LoginScreenState extends State<LoginScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _openRegisterAsRep() async {
+    HapticFeedback.selectionClick();
+    final uri = AppEndpoints.registerAsRepUri;
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open ${uri.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -441,14 +457,27 @@ class _LoginScreenState extends State<LoginScreen>
                           // Contact Link
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24),
-                            child: Text(
-                              'Need access? Contact your manager',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white.withOpacity(0.7),
-                                    fontSize: 13,
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Need access? Contact your manager',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.white.withOpacity(0.7),
+                                        fontSize: 13,
+                                      ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 10),
+                                TextButton.icon(
+                                  onPressed: _openRegisterAsRep,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white,
                                   ),
-                              textAlign: TextAlign.center,
+                                  icon: const Icon(Icons.open_in_new, size: 16),
+                                  label: const Text('Register as Rep'),
+                                ),
+                              ],
                             ),
                           ),
                         ],

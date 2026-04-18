@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { requireAuth } from '@/lib/api-auth';
 import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 
 export const runtime = 'nodejs';
@@ -29,21 +28,67 @@ function getStripeClient() {
   return new Stripe(STRIPE_SECRET_KEY);
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const authResult = await requireAuth(request, [
-      'primary_representative',
-      'representative',
-      'company_representative',
-      'master_admin',
-    ]);
+type BackendAuthUser = {
+  id: string;
+  email: string;
+  role: string;
+  companyId?: string | null;
+};
 
-    if (authResult.response) {
-      return authResult.response;
+async function getBackendAuthenticatedUser(request: NextRequest) {
+  const authHeader = request.headers.get('authorization') || '';
+  if (!authHeader) {
+    return {
+      user: null as BackendAuthUser | null,
+      errorResponse: NextResponse.json({ error: 'Authentication required' }, { status: 401 }),
+    };
+  }
+
+  const userResponse = await fetch(`${BACKEND_API_URL}/api/auth/me`, {
+    headers: {
+      Authorization: authHeader,
+    },
+  });
+
+  if (!userResponse.ok) {
+    let payload: any = null;
+    try {
+      payload = await userResponse.json();
+    } catch {
+      payload = null;
     }
 
-    const user = authResult.context?.user;
-    if (!user?.company_id) {
+    return {
+      user: null as BackendAuthUser | null,
+      errorResponse: NextResponse.json(
+        { error: payload?.error || 'Invalid or expired token' },
+        { status: userResponse.status }
+      ),
+    };
+  }
+
+  const userPayload = await userResponse.json();
+  const user = userPayload?.user as BackendAuthUser | undefined;
+
+  if (!user?.id || !user?.email) {
+    return {
+      user: null as BackendAuthUser | null,
+      errorResponse: NextResponse.json({ error: 'Failed to resolve authenticated user' }, { status: 401 }),
+    };
+  }
+
+  return { user, errorResponse: null as NextResponse | null };
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { user, errorResponse } = await getBackendAuthenticatedUser(request);
+    if (errorResponse) {
+      return errorResponse;
+    }
+
+    const companyId = user?.companyId;
+    if (!companyId) {
       return NextResponse.json(
         { error: 'Company not found for this account' },
         { status: 400 }
@@ -135,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      client_reference_id: String(user.company_id),
+      client_reference_id: String(companyId),
       customer_email: user.email,
       allow_promotion_codes: true,
       success_url: `${appBaseUrl}${successPath}${checkoutFlow === 'subscription' ? '&session_id={CHECKOUT_SESSION_ID}' : '?session_id={CHECKOUT_SESSION_ID}'}`,
@@ -157,14 +202,14 @@ export async function POST(request: NextRequest) {
         },
       ],
       metadata: {
-        companyId: String(user.company_id),
+        companyId: String(companyId),
         planId: String(plan.id),
         planName,
         billingCycle: String(plan.billingCycle || plan.billing_cycle || ''),
       },
       subscription_data: {
         metadata: {
-          companyId: String(user.company_id),
+          companyId: String(companyId),
           planId: String(plan.id),
           planName,
           billingCycle: String(plan.billingCycle || plan.billing_cycle || ''),

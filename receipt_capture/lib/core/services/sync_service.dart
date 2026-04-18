@@ -1,11 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_endpoints.dart';
 import '../database/receipt_repository.dart';
 import '../database/models.dart';
 
 enum SyncMode { manual, automatic }
 
 class SyncService {
+  static const String _tokenKey = 'auth_token';
+  static const String _userKey = 'user_data';
   static const String _syncModeKey = 'sync_mode';
   static const String _lastSyncKey = 'last_sync_timestamp';
   static const String _autoSyncIntervalKey = 'auto_sync_interval';
@@ -147,17 +153,14 @@ class SyncService {
   
   /// Process individual sync item
   Future<void> _processSyncItem(SyncQueueItem item) async {
-    // For now, work in offline-first mode without external sync
-    // This simulates processing but keeps data local
-    print('=== SYNC SERVICE: Processing item ${item.queueId} in offline mode');
+    print('=== SYNC SERVICE: Processing item ${item.queueId} via backend upload');
     final processingItem = item.copyWith(
       status: SyncStatus.processing,
       lastAttempt: DateTime.now(),
     );
     await _receiptRepository.updateSyncQueueItem(processingItem);
-    
-    // Simulate sync process (replace with actual email sending logic)
-    await _simulateEmailSync(item);
+
+    await _uploadReceipt(item);
     
     // Mark as completed and remove from queue
     await _receiptRepository.removeSyncQueueItem(item.queueId);
@@ -173,23 +176,85 @@ class SyncService {
       await _receiptRepository.updateReceipt(syncedReceipt);
     }
   }
-  
-  /// Simulate email sync (replace with actual implementation)
-  Future<void> _simulateEmailSync(SyncQueueItem item) async {
-    // OFFLINE-FIRST MODE: No external email sending required
-    // This marks receipts as "synced" locally without external dependencies
-    // When you have email credentials, replace this with actual email logic:
-    // 1. Get the receipt by ID
-    // 2. Prepare email with receipt image and data
-    // 3. Send to company's destination email
-    // 4. Handle success/failure
-    
-    print('=== SYNC SERVICE: Processing receipt ${item.receiptId} in offline mode');
-    
-    // Simulate minimal processing time (no network calls)
-    await Future.delayed(const Duration(milliseconds: 100));
-    
-    print('=== SYNC SERVICE: Marked receipt ${item.receiptId} as locally synced');
+
+  Future<void> _uploadReceipt(SyncQueueItem item) async {
+    final token = _prefs.getString(_tokenKey);
+    if (token == null || token.isEmpty) {
+      throw Exception('No auth token found. Please sign in again.');
+    }
+
+    final receipt = await _receiptRepository.getReceiptById(item.receiptId);
+    if (receipt == null) {
+      throw Exception('Receipt not found for sync item ${item.queueId}');
+    }
+
+    final imagePath = receipt.croppedImagePath?.isNotEmpty == true
+        ? receipt.croppedImagePath!
+        : receipt.imagePath;
+    final imageFile = File(imagePath);
+    if (!await imageFile.exists()) {
+      throw Exception('Receipt image file not found: $imagePath');
+    }
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(AppEndpoints.apiPath('/api/receipts/upload')),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.fields['receiptId'] = receipt.id;
+    request.fields['status'] = 'pending';
+    request.fields['createdAt'] = receipt.createdAt.toIso8601String();
+    request.fields['updatedAt'] = receipt.updatedAt.toIso8601String();
+
+    if (receipt.merchantName != null && receipt.merchantName!.isNotEmpty) {
+      request.fields['merchantName'] = receipt.merchantName!;
+    }
+    if (receipt.amount != null) {
+      request.fields['amount'] = receipt.amount!.toString();
+    }
+    if (receipt.date != null) {
+      request.fields['receiptDate'] = receipt.date!.toIso8601String();
+    }
+    if (receipt.category != null && receipt.category!.isNotEmpty) {
+      request.fields['category'] = receipt.category!;
+    }
+    if (receipt.notes != null && receipt.notes!.isNotEmpty) {
+      request.fields['notes'] = receipt.notes!;
+    }
+
+    final userJson = _prefs.getString(_userKey);
+    if (userJson != null && userJson.isNotEmpty) {
+      try {
+        final userMap = jsonDecode(userJson) as Map<String, dynamic>;
+        final userId = userMap['id']?.toString();
+        if (userId != null && userId.isNotEmpty) {
+          request.fields['userId'] = userId;
+        }
+      } catch (_) {
+        // Keep upload resilient if cached user payload is malformed.
+      }
+    }
+
+    request.files.add(await http.MultipartFile.fromPath('receiptImage', imagePath));
+
+    final response = await request.send();
+    final responseText = await response.stream.bytesToString();
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String backendError = 'Failed to upload receipt';
+      if (responseText.isNotEmpty) {
+        try {
+          final payload = jsonDecode(responseText) as Map<String, dynamic>;
+          backendError = payload['error']?.toString() ?? backendError;
+        } catch (_) {
+          backendError = responseText;
+        }
+      }
+
+      throw Exception('$backendError (HTTP ${response.statusCode})');
+    }
   }
   
   /// Check if automatic sync should run

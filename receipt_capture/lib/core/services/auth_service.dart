@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_endpoints.dart';
 import '../models/user.dart';
 
 class AuthService {
@@ -8,112 +10,78 @@ class AuthService {
   static const String _userKey = 'user_data';
   static const String _isLoggedInKey = 'is_logged_in';
 
-  // Hardcoded users for development (normally managed through web portal)
-  static const List<Map<String, dynamic>> _hardcodedUsers = [
-    {
-      'id': '1',
-      'email': 'user@company.com',
-      'password': 'user123',
-      'name': 'John Doe',
-      'role': 'employee',
-      'organization': 'Acme Corporation',
-      'isActive': true,
-    },
-    {
-      'id': '2',
-      'email': 'manager@company.com',
-      'password': 'manager123',
-      'name': 'Jane Smith',
-      'role': 'manager',
-      'organization': 'Acme Corporation',
-      'isActive': true,
-    },
-    {
-      'id': '3',
-      'email': 'employee1@techcorp.com',
-      'password': 'emp123',
-      'name': 'Mike Johnson',
-      'role': 'employee',
-      'organization': 'Tech Corp',
-      'isActive': true,
-    },
-    {
-      'id': '4',
-      'email': 'manager2@techcorp.com',
-      'password': 'mgr123',
-      'name': 'Sarah Wilson',
-      'role': 'manager',
-      'organization': 'Tech Corp',
-      'isActive': true,
-    },
-    {
-      'id': '5',
-      'email': 'inactive@company.com',
-      'password': 'test123',
-      'name': 'Inactive User',
-      'role': 'employee',
-      'organization': 'Test Company',
-      'isActive': false,
-    },
-  ];
-
   final StreamController<User?> _userController = StreamController<User?>.broadcast();
   Stream<User?> get userStream => _userController.stream;
 
   User? _currentUser;
+  String? _currentToken;
   User? get currentUser => _currentUser;
+  String? get currentToken => _currentToken;
 
   bool get isLoggedIn => _currentUser != null;
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool(_isLoggedInKey) ?? false;
+    final token = prefs.getString(_tokenKey);
     
-    if (isLoggedIn) {
+    if (isLoggedIn && token != null && token.isNotEmpty) {
       final userJson = prefs.getString(_userKey);
       if (userJson != null) {
         try {
           final userData = jsonDecode(userJson);
           _currentUser = User.fromJson(userData);
+          _currentToken = token;
           _userController.add(_currentUser);
         } catch (e) {
           // Invalid stored user data, clear it
           await logout();
         }
+      } else {
+        await logout();
       }
+    } else if (isLoggedIn) {
+      await logout();
     }
   }
 
   Future<AuthResult> login(String email, String password) async {
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Find user in hardcoded list
-      final userMap = _hardcodedUsers.firstWhere(
-        (user) => user['email'] == email && user['password'] == password,
-        orElse: () => {},
+      final response = await http.post(
+        Uri.parse(AppEndpoints.apiPath('/api/auth/staff/login')),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
 
-      if (userMap.isEmpty) {
+      final bodyText = response.body;
+      final Map<String, dynamic> payload = bodyText.isNotEmpty
+          ? (jsonDecode(bodyText) as Map<String, dynamic>)
+          : <String, dynamic>{};
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         return AuthResult(
           success: false,
-          error: 'Invalid email or password',
+          error: payload['error']?.toString() ?? 'Invalid email or password',
         );
       }
 
-      if (!userMap['isActive']) {
+      final token = payload['token']?.toString();
+      final userPayload = payload['user'] as Map<String, dynamic>?;
+
+      if (token == null || token.isEmpty || userPayload == null) {
         return AuthResult(
           success: false,
-          error: 'Account is deactivated. Please contact your manager.',
+          error: 'Login response is missing token or user data',
         );
       }
 
-      // Create user object
-      _currentUser = User.fromJson(userMap);
-
-      // Generate mock JWT token
-      final token = _generateMockToken(_currentUser!);
+      _currentUser = _mapBackendUser(userPayload);
+      _currentToken = token;
 
       // Store in shared preferences
       final prefs = await SharedPreferences.getInstance();
@@ -138,6 +106,17 @@ class AuthService {
 
   // Note: User registration is handled by admin through web portal
 
+  Future<String?> getStoredToken() async {
+    if (_currentToken != null && _currentToken!.isNotEmpty) {
+      return _currentToken;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    _currentToken = token;
+    return token;
+  }
+
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -146,6 +125,7 @@ class AuthService {
       await prefs.setBool(_isLoggedInKey, false);
 
       _currentUser = null;
+      _currentToken = null;
       _userController.add(null);
     } catch (e) {
       print('Error during logout: $e');
@@ -183,19 +163,10 @@ class AuthService {
       // Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
 
-      // Check if user exists
-      final userExists = _hardcodedUsers.any((user) => user['email'] == email);
-      if (!userExists) {
-        return AuthResult(
-          success: false,
-          error: 'No account found with this email address',
-        );
-      }
-
       // Simulate sending reset email
       return AuthResult(
         success: true,
-        message: 'Password reset instructions sent to your email',
+        message: 'Please contact your manager to reset your password',
       );
     } catch (e) {
       return AuthResult(
@@ -205,19 +176,18 @@ class AuthService {
     }
   }
 
-  String _generateMockToken(User user) {
-    // Generate a mock JWT token (in real app, this comes from backend)
-    final header = base64Encode(utf8.encode(jsonEncode({'typ': 'JWT', 'alg': 'HS256'})));
-    final payload = base64Encode(utf8.encode(jsonEncode({
-      'sub': user.id,
-      'email': user.email,
-      'role': user.role,
-      'exp': DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch ~/ 1000,
-      'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-    })));
-    final signature = base64Encode(utf8.encode('mock_signature_${user.id}'));
-    
-    return '$header.$payload.$signature';
+  User _mapBackendUser(Map<String, dynamic> userPayload) {
+    final companyId = userPayload['companyId']?.toString();
+    return User.fromJson({
+      'id': userPayload['id']?.toString() ?? '',
+      'email': userPayload['email']?.toString() ?? '',
+      'name': userPayload['name']?.toString() ?? '',
+      'role': userPayload['role']?.toString() ?? 'employee',
+      'organization': companyId == null || companyId.isEmpty
+          ? 'Company'
+          : 'Company $companyId',
+      'isActive': userPayload['isActive'] ?? true,
+    });
   }
 
   void dispose() {
