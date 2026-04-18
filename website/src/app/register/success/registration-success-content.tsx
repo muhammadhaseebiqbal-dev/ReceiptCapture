@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,16 +21,16 @@ export default function RegistrationSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(10);
+  const hasRedirected = useRef(false);
   const stripeMode = searchParams.get('stripe');
   const selectedPlan = searchParams.get('plan');
   const showSimulatedStripe = FORCE_STRIPE_SIMULATION || stripeMode === 'simulated';
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown(prev => {
+      setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          router.push('/login');
           return 0;
         }
         return prev - 1;
@@ -38,7 +38,16 @@ export default function RegistrationSuccessContent() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    if (countdown !== 0 || hasRedirected.current) {
+      return;
+    }
+
+    hasRedirected.current = true;
+    router.push('/login');
+  }, [countdown, router]);
 
   const nextSteps = [
     {
