@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { proxyJsonRequest } from '@/lib/backend-proxy';
 
 interface RouteParams {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     return await proxyJsonRequest(request, `/api/staff/${id}`, 'PUT', body);
   } catch (error) {
@@ -18,7 +18,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id } = params;
+    const { id } = await params;
     return await proxyJsonRequest(request, `/api/staff/${id}`, 'DELETE');
   } catch (error) {
     console.error('Delete staff error:', error);

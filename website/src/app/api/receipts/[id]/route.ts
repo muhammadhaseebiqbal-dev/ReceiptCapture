@@ -4,9 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request, ['company_representative']);
     if (authResult.response) {
       return authResult.response;
@@ -20,7 +21,7 @@ export async function GET(
     const { data: receipt, error } = await supabaseAdmin
       .from('receipts')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('company_id', user.company_id)
       .maybeSingle();
 
@@ -58,9 +59,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request, ['company_representative']);
     if (authResult.response) {
       return authResult.response;
@@ -76,7 +78,7 @@ export async function PUT(
     const { data: existing, error: findError } = await supabaseAdmin
       .from('receipts')
       .select('id, user_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('company_id', user.company_id)
       .maybeSingle();
 
@@ -98,7 +100,7 @@ export async function PUT(
     const { data: updatedReceipt, error: updateError } = await supabaseAdmin
       .from('receipts')
       .update(updates)
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('company_id', user.company_id)
       .select('*')
       .single();
