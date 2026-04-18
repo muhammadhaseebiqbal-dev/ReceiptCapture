@@ -44,19 +44,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogin(AuthLogin event, Emitter<AuthState> emit) async {
     try {
+      print('[AuthBloc] Login event received for ${event.email}');
       emit(AuthLoading());
       
       final result = await _authService.login(event.email, event.password);
       
+      print('[AuthBloc] Login result: success=${result.success}, error=${result.error}');
+      
       if (result.success && result.user != null && result.token != null) {
+        print('[AuthBloc] Emitting AuthAuthenticated state');
         emit(AuthAuthenticated(
           user: result.user!,
           token: result.token!,
         ));
       } else {
+        print('[AuthBloc] Emitting AuthError state: ${result.error}');
         emit(AuthError(message: result.error ?? 'Login failed'));
       }
     } catch (e) {
+      print('[AuthBloc] Exception caught: $e');
       emit(AuthError(message: 'Login failed: ${e.toString()}'));
     }
   }

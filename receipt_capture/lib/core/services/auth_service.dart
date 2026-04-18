@@ -47,8 +47,11 @@ class AuthService {
 
   Future<AuthResult> login(String email, String password) async {
     try {
+      final url = AppEndpoints.apiPath('/api/auth/staff/login');
+      print('[AuthService] Login attempt for $email at $url');
+      
       final response = await http.post(
-        Uri.parse(AppEndpoints.apiPath('/api/auth/staff/login')),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -56,17 +59,27 @@ class AuthService {
           'email': email,
           'password': password,
         }),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timeout - cannot reach backend at $url');
+        },
       );
 
       final bodyText = response.body;
+      print('[AuthService] Response status: ${response.statusCode}');
+      print('[AuthService] Response body: $bodyText');
+      
       final Map<String, dynamic> payload = bodyText.isNotEmpty
           ? (jsonDecode(bodyText) as Map<String, dynamic>)
           : <String, dynamic>{};
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        final error = payload['error']?.toString() ?? 'Invalid email or password';
+        print('[AuthService] Login failed: $error');
         return AuthResult(
           success: false,
-          error: payload['error']?.toString() ?? 'Invalid email or password',
+          error: error,
         );
       }
 
@@ -74,12 +87,14 @@ class AuthService {
       final userPayload = payload['user'] as Map<String, dynamic>?;
 
       if (token == null || token.isEmpty || userPayload == null) {
+        print('[AuthService] Missing token or user data in response');
         return AuthResult(
           success: false,
           error: 'Login response is missing token or user data',
         );
       }
 
+      print('[AuthService] Login successful for ${userPayload['email']}');
       _currentUser = _mapBackendUser(userPayload);
       _currentToken = token;
 
@@ -97,9 +112,11 @@ class AuthService {
         token: token,
       );
     } catch (e) {
+      final errorMsg = 'Login failed: ${e.toString()}';
+      print('[AuthService] Exception: $errorMsg');
       return AuthResult(
         success: false,
-        error: 'Login failed: ${e.toString()}',
+        error: errorMsg,
       );
     }
   }

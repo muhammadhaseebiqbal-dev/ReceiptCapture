@@ -6,12 +6,25 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = new Set([
+// Parse CORS origins from environment or use defaults for local dev
+const defaultOrigins = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-]);
+];
+
+const frontendUrl = process.env.FRONTEND_URL?.trim();
+const corsOriginsEnv = process.env.ALLOWED_ORIGINS;
+const envOrigins = corsOriginsEnv
+  ? corsOriginsEnv.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [];
+
+if (frontendUrl) {
+  envOrigins.push(frontendUrl);
+}
+
+const allowedOrigins = new Set(envOrigins.length > 0 ? envOrigins : defaultOrigins);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
