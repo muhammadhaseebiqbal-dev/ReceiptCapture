@@ -74,7 +74,7 @@ export async function registerCompanyRepresentative(input: RegisterCompanyInput)
 
   const { data: subscriptionPlan, error: planError } = await supabaseAdmin
     .from('subscription_plans')
-    .select('id, name, billing_cycle')
+    .select('id, name, price, billing_cycle')
     .eq('id', selectedPlanId)
     .eq('is_active', true)
     .maybeSingle();
@@ -89,7 +89,11 @@ export async function registerCompanyRepresentative(input: RegisterCompanyInput)
 
   const now = new Date();
   const subscriptionEndDate = new Date(now);
-  subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+  if (subscriptionPlan.billing_cycle === 'yearly' || subscriptionPlan.billing_cycle === 'annual') {
+    subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+  } else {
+    subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+  }
 
   const { data: company, error: companyError } = await supabaseAdmin
     .from('companies')
@@ -98,7 +102,7 @@ export async function registerCompanyRepresentative(input: RegisterCompanyInput)
       domain: companyDomain || null,
       destination_email: destinationEmail.toLowerCase(),
       subscription_plan_id: selectedPlanId,
-      subscription_status: 'trial',
+      subscription_status: 'active',
       subscription_start_date: now.toISOString(),
       subscription_end_date: subscriptionEndDate.toISOString(),
     })
@@ -132,12 +136,12 @@ export async function registerCompanyRepresentative(input: RegisterCompanyInput)
     company_id: company.id,
     plan_id: selectedPlanId,
     plan_name: subscriptionPlan.name,
-    amount: 0,
+    amount: Number(subscriptionPlan.price || 0),
     billing_cycle: subscriptionPlan.billing_cycle,
     status: 'paid',
     billing_date: now.toISOString(),
     next_billing_date: subscriptionEndDate.toISOString(),
-    description: `30-day trial for ${subscriptionPlan.name} plan`,
+    description: `Subscription started for ${subscriptionPlan.name} plan`,
   });
 
   const token = generateToken(user.id, user.email, user.role, user.company_id);
@@ -160,7 +164,7 @@ export async function registerCompanyRepresentative(input: RegisterCompanyInput)
     },
     subscriptionPlan: {
       name: subscriptionPlan.name,
-      trialEndDate: subscriptionEndDate.toISOString(),
+      endDate: subscriptionEndDate.toISOString(),
     },
   };
 }

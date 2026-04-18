@@ -42,7 +42,7 @@ export function getSubscriptionMessage(status: SubscriptionStatus): string {
     case 'active':
       return 'Your subscription is active';
     case 'trial':
-      return 'You are on a free trial';
+      return 'Your subscription is active';
     case 'inactive':
       return 'Your subscription is inactive. Please upgrade.';
     case 'expired':

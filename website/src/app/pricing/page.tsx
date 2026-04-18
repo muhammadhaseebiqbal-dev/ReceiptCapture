@@ -104,7 +104,7 @@ export default function PricingPage() {
           <div className="w-20" />
         </div>
       </header>
-
+                      Get Started
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Page Title */}
         <div className="text-center mb-16">
@@ -208,7 +208,7 @@ export default function PricingPage() {
                       variant={plan.popular ? 'default' : 'outline'}
                       onClick={() => handleStartTrial(plan.id)}
                     >
-                      Start Free Trial
+                      Get Started
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                     
@@ -239,8 +239,8 @@ export default function PricingPage() {
           <h3 className="text-2xl font-bold mb-6">Frequently Asked Questions</h3>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <h4 className="font-semibold mb-2">Free Trial</h4>
-              <p className="text-gray-600">All plans include a 14-day free trial. No credit card required to get started.</p>
+              <h4 className="font-semibold mb-2">When does billing start?</h4>
+              <p className="text-gray-600">Billing starts when your selected plan is activated.</p>
             </div>
             <div>
               <h4 className="font-semibold mb-2">Can I change plans?</h4>

@@ -198,7 +198,7 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg" onClick={handleGetStarted}>
-              Start Free Trial
+              Get Started
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button size="lg" variant="outline" className="text-lg" onClick={() => {
@@ -382,7 +382,7 @@ export default function LandingPage() {
             Join thousands of companies already using Receipt Capture
           </p>
           <Button size="lg" className="text-lg" onClick={handleGetStarted}>
-            Start Your Free Trial
+            Create Your Account
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>

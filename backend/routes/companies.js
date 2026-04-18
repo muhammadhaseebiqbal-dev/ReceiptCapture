@@ -86,7 +86,7 @@ companiesRouter.post('/', requireAuth(['master_admin']), async (req, res) => {
         domain || null,
         destination_email || null,
         subscription_plan_id,
-        subscription_status || 'trial',
+        subscription_status || 'active',
         subscription_start_date || new Date().toISOString(),
         subscription_end_date || null,
       ]

@@ -231,6 +231,7 @@ export default function RegisterPage() {
           },
           body: JSON.stringify({
             planId: formData.selectedPlanId,
+            flow: 'register',
           }),
         });
 

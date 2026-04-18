@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SubscriptionPlan, BillingHistory } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 import { 
   ArrowLeft, 
   CreditCard, 
@@ -153,26 +154,55 @@ export default function SubscriptionPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/subscription/change', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ planId }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error);
+      if (!token) {
+        throw new Error('Authentication required. Please log in again.');
       }
 
-      setSuccess(result.message);
-      setSelectedPlan(null);
-      
-      // Reload data
-      await loadSubscriptionData(token!);
+      if (FORCE_STRIPE_SIMULATION) {
+        const response = await fetch('/api/subscription/change', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ planId }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Unable to change plan');
+        }
+
+        setSuccess(`${result.message} (simulated Stripe mode)`);
+        setSelectedPlan(null);
+
+        // Reload data in simulated mode because checkout redirect is skipped.
+        await loadSubscriptionData(token);
+      } else {
+        const checkoutResponse = await fetch('/api/stripe/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ planId, flow: 'subscription' }),
+        });
+
+        const checkoutResult = await checkoutResponse.json();
+
+        if (!checkoutResponse.ok) {
+          throw new Error(checkoutResult?.error || 'Unable to start Stripe checkout for plan change');
+        }
+
+        if (!checkoutResult?.url) {
+          throw new Error('Stripe checkout URL was not returned');
+        }
+
+        setSelectedPlan(null);
+        window.location.href = checkoutResult.url;
+        return;
+      }
       
     } catch (err: any) {
       setError(err.message);
@@ -245,6 +275,15 @@ export default function SubscriptionPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Alert className={`mb-4 ${FORCE_STRIPE_SIMULATION ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-blue-300 bg-blue-50 text-blue-900'}`}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {FORCE_STRIPE_SIMULATION
+              ? STRIPE_SIMULATION_MESSAGE
+              : 'Stripe live checkout is enabled. Plan changes will open Stripe and apply after successful payment.'}
+          </AlertDescription>
+        </Alert>
+
         {/* Alerts */}
         {error && (
           <Alert variant="destructive" className="mb-4">

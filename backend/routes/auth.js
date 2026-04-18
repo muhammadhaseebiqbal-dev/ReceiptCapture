@@ -74,7 +74,7 @@ authRouter.post('/register', async (req, res) => {
     }
 
     const planResult = await db.query(
-      `select id, name, billing_cycle
+      `select id, name, price, billing_cycle
        from subscription_plans
        where id = $1 and is_active = true`,
       [selectedPlanId]
@@ -88,11 +88,15 @@ authRouter.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(representativePassword, 12);
     const now = new Date();
     const subscriptionEndDate = new Date(now);
-    subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
+    if (subscriptionPlan.billing_cycle === 'yearly' || subscriptionPlan.billing_cycle === 'annual') {
+      subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
+    } else {
+      subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
+    }
 
     const companyResult = await db.query(
       `insert into companies (name, domain, destination_email, subscription_plan_id, subscription_status, subscription_start_date, subscription_end_date)
-       values ($1, $2, $3, $4, 'trial', $5, $6)
+       values ($1, $2, $3, $4, 'active', $5, $6)
        returning id, name, destination_email, subscription_status`,
       [
         companyName,
@@ -128,15 +132,16 @@ authRouter.post('/register', async (req, res) => {
 
     await db.query(
       `insert into billing_history (company_id, plan_id, plan_name, amount, billing_cycle, status, billing_date, next_billing_date, description)
-       values ($1, $2, $3, 0, $4, 'paid', $5, $6, $7)`,
+       values ($1, $2, $3, $4, $5, 'paid', $6, $7, $8)`,
       [
         company.id,
         selectedPlanId,
         subscriptionPlan.name,
+        Number(subscriptionPlan.price || 0),
         subscriptionPlan.billing_cycle,
         now.toISOString(),
         subscriptionEndDate.toISOString(),
-        `30-day trial for ${subscriptionPlan.name} plan`,
+        `Subscription started for ${subscriptionPlan.name} plan`,
       ]
     );
 
@@ -167,7 +172,7 @@ authRouter.post('/register', async (req, res) => {
       },
       subscriptionPlan: {
         name: subscriptionPlan.name,
-        trialEndDate: subscriptionEndDate.toISOString(),
+        endDate: subscriptionEndDate.toISOString(),
       },
     });
   } catch (error) {

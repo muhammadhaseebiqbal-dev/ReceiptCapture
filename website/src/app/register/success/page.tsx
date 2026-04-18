@@ -102,19 +102,19 @@ export default function RegistrationSuccessPage() {
           </Card>
         )}
 
-        {/* Trial Information */}
+        {/* Subscription Information */}
         <Card className="bg-blue-50 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">30-Day Free Trial Started</h3>
+                <h3 className="text-lg font-semibold text-blue-900">Subscription Activated</h3>
                 <p className="text-blue-700">
-                  Your trial period begins now. No payment required until your trial expires.
+                  Your selected plan is now active and billing follows your plan cycle.
                 </p>
               </div>
               <Badge className="bg-blue-600 text-white">
                 <Calendar className="h-4 w-4 mr-1" />
-                30 Days
+                Active
               </Badge>
             </div>
           </CardContent>

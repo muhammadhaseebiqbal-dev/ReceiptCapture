@@ -50,30 +50,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { planId } = await request.json();
+    const { planId, flow } = await request.json();
 
     if (!planId) {
       return NextResponse.json(
         { error: 'Plan ID is required' },
         { status: 400 }
-      );
-    }
-
-    if (!STRIPE_SECRET_KEY) {
-      return NextResponse.json(
-        { 
-          error: 'Stripe is not configured',
-          message: 'Please configure STRIPE_SECRET_KEY before creating checkout sessions.' 
-        },
-        { status: 503 }
-      );
-    }
-
-    const stripe = getStripeClient();
-    if (!stripe) {
-      return NextResponse.json(
-        { error: 'Stripe client could not be initialized' },
-        { status: 500 }
       );
     }
 
@@ -113,9 +95,18 @@ export async function POST(request: NextRequest) {
     const billingInterval = normalizeBillingInterval(plan.billingCycle || plan.billing_cycle);
     const planName = String(plan.name || 'Subscription Plan');
     const planDescription = plan.description ? String(plan.description) : undefined;
+    const checkoutFlow = flow === 'subscription' ? 'subscription' : 'register';
+    const successPath = checkoutFlow === 'subscription'
+      ? `/dashboard/subscription?checkout=success&planId=${encodeURIComponent(String(plan.id))}`
+      : '/register/success';
+    const cancelPath = checkoutFlow === 'subscription'
+      ? '/dashboard/subscription?checkout=canceled'
+      : '/pricing?checkout=canceled';
 
     if (FORCE_STRIPE_SIMULATION) {
-      const simulatedUrl = `${appBaseUrl}/register/success?stripe=simulated&plan=${encodeURIComponent(planName)}`;
+      const simulatedUrl = checkoutFlow === 'subscription'
+        ? `${appBaseUrl}/dashboard/subscription?checkout=simulated&planId=${encodeURIComponent(String(plan.id))}&plan=${encodeURIComponent(planName)}`
+        : `${appBaseUrl}/register/success?stripe=simulated&plan=${encodeURIComponent(planName)}`;
       return NextResponse.json({
         simulated: true,
         message: STRIPE_SIMULATION_MESSAGE,
@@ -124,13 +115,31 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (!STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        {
+          error: 'Stripe is not configured',
+          message: 'Please configure STRIPE_SECRET_KEY before creating checkout sessions.'
+        },
+        { status: 503 }
+      );
+    }
+
+    const stripe = getStripeClient();
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe client could not be initialized' },
+        { status: 500 }
+      );
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       client_reference_id: String(user.company_id),
       customer_email: user.email,
       allow_promotion_codes: true,
-      success_url: `${appBaseUrl}/register/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appBaseUrl}/pricing?checkout=canceled`,
+      success_url: `${appBaseUrl}${successPath}${checkoutFlow === 'subscription' ? '&session_id={CHECKOUT_SESSION_ID}' : '?session_id={CHECKOUT_SESSION_ID}'}`,
+      cancel_url: `${appBaseUrl}${cancelPath}`,
       line_items: [
         {
           quantity: 1,
