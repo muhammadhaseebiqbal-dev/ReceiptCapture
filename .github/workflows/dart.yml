@@ -2,11 +2,43 @@ name: iOS-ipa-and-simulator-build
 
 on:
   workflow_dispatch:
+    inputs:
+      build_ios:
+        description: 'Also run iOS IPA and simulator builds'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
+  build-android-apk:
+    name: 🤖 Android APK Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: receipt_capture
+
+      - name: Build Android APK (release)
+        run: flutter build apk --release
+        working-directory: receipt_capture
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: receipt-capture-release-apk
+          path: receipt_capture/build/app/outputs/flutter-apk/app-release.apk
+
   build-ios:
     name: 🎉 iOS Build (IPA)
     runs-on: macos-latest
+    needs: build-android-apk
+    if: ${{ inputs.build_ios == true }}
     steps:
       - uses: actions/checkout@v3
 
@@ -47,6 +79,7 @@ jobs:
     name: 🧪 iOS Simulator Build (for Appetize.io)
     runs-on: macos-latest
     needs: build-ios
+    if: ${{ inputs.build_ios == true }}
     steps:
       - uses: actions/checkout@v3
 
