@@ -19,7 +19,7 @@ function createMissingSupabaseClient() {
 
 // Legacy fallback: keep imports safe even when Supabase env vars are absent.
 // Remaining routes should be migrated to the backend API.
-export const supabaseAdmin =
+export const supabaseAdmin: any =
   supabaseUrl && supabaseServiceKey
     ? createClient(supabaseUrl, supabaseServiceKey, {
         auth: {

@@ -8,6 +8,11 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:4000';
 
+type StripeSubscriptionPeriod = Stripe.Subscription & {
+  current_period_start: number;
+  current_period_end: number;
+};
+
 function getStripeClient() {
   if (!STRIPE_SECRET_KEY) {
     return null;
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
 
       if (session.subscription) {
-        const subscription = await stripe.subscriptions.retrieve(String(session.subscription));
+        const subscription = (await stripe.subscriptions.retrieve(String(session.subscription))) as unknown as StripeSubscriptionPeriod;
         const companyId = String(session.metadata?.companyId || subscription.metadata?.companyId || session.client_reference_id || '');
         const planId = String(session.metadata?.planId || subscription.metadata?.planId || '');
 
@@ -118,7 +123,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object as Stripe.Subscription;
+      const subscription = event.data.object as StripeSubscriptionPeriod;
       const companyId = String(subscription.metadata?.companyId || '');
       const planId = String(subscription.metadata?.planId || '');
 

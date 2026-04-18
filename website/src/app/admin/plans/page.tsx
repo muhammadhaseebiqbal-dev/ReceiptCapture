@@ -102,7 +102,7 @@ export default function ManagePlansPage() {
     billing_cycle: 'monthly',
     max_users: '',
     max_receipts_per_month: '',
-    features: '',
+    features: [],
     is_active: true
   });
 
