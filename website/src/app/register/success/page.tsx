@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 import { 
   CheckCircle, 
   Smartphone, 
@@ -18,7 +19,11 @@ import {
 
 export default function RegistrationSuccessPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [countdown, setCountdown] = useState(10);
+  const stripeMode = searchParams.get('stripe');
+  const selectedPlan = searchParams.get('plan');
+  const showSimulatedStripe = FORCE_STRIPE_SIMULATION || stripeMode === 'simulated';
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -79,6 +84,23 @@ export default function RegistrationSuccessPage() {
             Welcome to Receipt Capture! Your company account has been created.
           </p>
         </div>
+
+        {showSimulatedStripe && (
+          <Card className="bg-amber-50 border-amber-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-amber-900">Stripe Step Completed (Simulated)</h3>
+                  <p className="text-amber-800">
+                    {STRIPE_SIMULATION_MESSAGE}
+                    {selectedPlan ? ` Plan selected: ${selectedPlan}.` : ''}
+                  </p>
+                </div>
+                <Badge className="bg-amber-600 text-white">Simulated</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Trial Information */}
         <Card className="bg-blue-50 border-blue-200">

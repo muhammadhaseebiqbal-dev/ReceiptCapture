@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { SubscriptionPlan } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 import { 
   Building, 
   Mail, 
@@ -245,11 +246,19 @@ export default function RegisterPage() {
         }
       }
 
-      setSuccess('Registration successful. Stripe checkout is not available yet, so you were registered without payment.');
+      setSuccess(
+        FORCE_STRIPE_SIMULATION
+          ? 'Registration successful. Stripe simulation step completed and no real payment was made.'
+          : 'Registration successful. Stripe checkout is not available yet, so you were registered without payment.'
+      );
       
       // Redirect to success page or login after a delay
       setTimeout(() => {
-        router.push('/register/success');
+        const selectedPlanName = subscriptionPlans.find((plan) => plan.id === formData.selectedPlanId)?.name;
+        const successUrl = FORCE_STRIPE_SIMULATION
+          ? `/register/success?stripe=simulated${selectedPlanName ? `&plan=${encodeURIComponent(selectedPlanName)}` : ''}`
+          : '/register/success';
+        router.push(successUrl);
       }, 2000);
       
     } catch (err: any) {
@@ -315,6 +324,13 @@ export default function RegisterPage() {
         {/* Form Card */}
         <Card>
           <CardContent className="p-8">
+            {FORCE_STRIPE_SIMULATION && (
+              <Alert className="mb-6 border-amber-400 bg-amber-50 text-amber-900">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{STRIPE_SIMULATION_MESSAGE}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Alerts */}
             {error && (
               <Alert variant="destructive" className="mb-6">
@@ -592,7 +608,11 @@ export default function RegisterPage() {
                     disabled={isSubmitting}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
-                    {isSubmitting ? 'Creating Account and Redirecting to Stripe...' : 'Complete Registration and Pay'}
+                    {isSubmitting
+                      ? 'Creating Account and Redirecting to Stripe...'
+                      : FORCE_STRIPE_SIMULATION
+                        ? 'Complete Registration and Continue Stripe (Simulated)'
+                        : 'Complete Registration and Pay'}
                   </Button>
                 </div>
               </div>

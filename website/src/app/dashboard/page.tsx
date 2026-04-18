@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { User, Company, AppUser } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
 import { Users, Receipt, Settings, LogOut, Mail, AlertCircle } from 'lucide-react';
 
 interface DashboardData {
@@ -14,6 +13,7 @@ interface DashboardData {
   company: Company | null;
   appUsers: AppUser[];
   receiptsCount: number;
+  currentPlanName: string;
 }
 
 export default function DashboardPage() {
@@ -47,7 +47,7 @@ export default function DashboardPage() {
     }
 
     // Load dashboard data
-    loadDashboardData(user);
+    loadDashboardData(user, token);
 
     const notice = sessionStorage.getItem('accountStatusNotice');
     if (notice) {
@@ -56,45 +56,54 @@ export default function DashboardPage() {
     }
   }, [router]);
 
-  const loadDashboardData = async (user: User) => {
+  const loadDashboardData = async (user: User, token: string) => {
     try {
-      // In a real app, these would be API calls
-      // For now, we'll simulate the data
+      const [companyResponse, staffResponse] = await Promise.all([
+        fetch('/api/company/settings', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        fetch('/api/staff', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
+
+      if (!companyResponse.ok) {
+        throw new Error('Failed to load company details');
+      }
+
+      const companyPayload = await companyResponse.json();
+
+      let appUsers: AppUser[] = [];
+      if (staffResponse.ok) {
+        const staffPayload = await staffResponse.json();
+        appUsers = staffPayload.staff || [];
+      }
+
+      const company: Company | null = companyPayload?.company
+        ? {
+            id: companyPayload.company.id,
+            name: companyPayload.company.name,
+            domain: companyPayload.company.domain,
+            destinationEmail: companyPayload.company.destinationEmail,
+            subscriptionPlanId: companyPayload.company.subscriptionPlanId,
+            subscriptionStatus: companyPayload.company.subscriptionStatus,
+            subscriptionStartDate: companyPayload.company.subscriptionStartDate,
+            subscriptionEndDate: companyPayload.company.subscriptionEndDate,
+            createdAt: companyPayload.company.createdAt,
+            updatedAt: companyPayload.company.updatedAt,
+          }
+        : null;
+
       const dashboardData: DashboardData = {
         user,
-        company: {
-          id: user.companyId || '',
-          name: 'Tech Corp Ltd',
-          destinationEmail: 'invoices@techcorp.com',
-          subscriptionStatus: 'active',
-          subscriptionStartDate: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-        },
-        appUsers: [
-          {
-            id: '1',
-            email: 'staff1@techcorp.com',
-            name: 'Alice Johnson',
-            companyId: user.companyId || '',
-            role: 'employee',
-            isActive: true,
-            createdBy: user.id,
-            createdAt: new Date().toISOString(),
-            password: '',
-          },
-          {
-            id: '2',
-            email: 'manager@techcorp.com',
-            name: 'Bob Wilson',
-            companyId: user.companyId || '',
-            role: 'manager',
-            isActive: true,
-            createdBy: user.id,
-            createdAt: new Date().toISOString(),
-            password: '',
-          },
-        ],
-        receiptsCount: 156,
+        company,
+        appUsers,
+        receiptsCount: companyPayload?.usage?.receiptsThisMonth || 0,
+        currentPlanName: companyPayload?.subscriptionPlan?.name || 'No active plan',
       };
 
       setData(dashboardData);
@@ -199,7 +208,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-2xl font-bold capitalize">{data.company?.subscriptionStatus}</div>
               <p className="text-xs text-muted-foreground">
-                Professional Plan
+                {data.currentPlanName}
               </p>
             </CardContent>
           </Card>
@@ -264,7 +273,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                <div className="text-lg font-semibold">Professional</div>
+                <div className="text-lg font-semibold capitalize">{data.company?.subscriptionStatus || 'Unknown'}</div>
                 <div className="text-sm text-muted-foreground">Current Plan</div>
               </div>
               <Button className="w-full" onClick={() => router.push('/dashboard/subscription')}>

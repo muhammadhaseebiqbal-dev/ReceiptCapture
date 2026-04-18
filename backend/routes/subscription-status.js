@@ -28,11 +28,11 @@ function getAuthPayload(req) {
 subscriptionStatusRouter.get('/', async (req, res) => {
   try {
     const authPayload = getAuthPayload(req);
-    if (!authPayload || !authPayload.company_id) {
+    const companyId = authPayload?.companyId || authPayload?.company_id || null;
+
+    if (!authPayload || !companyId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    const companyId = authPayload.company_id;
 
     // Fetch company subscription info
     const companyResult = await db.query(

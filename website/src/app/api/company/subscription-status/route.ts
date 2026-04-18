@@ -1,37 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/api-auth';
+
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:4000';
 
 // GET /api/company/subscription-status
 // Returns current subscription status for the company
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAuth(request);
-    if (authResult.response) {
-      return authResult.response;
-    }
-
-    const user = authResult.context?.user;
-    if (!user?.company_id) {
+    const authorization = request.headers.get('authorization') || '';
+    if (!authorization) {
       return NextResponse.json(
-        { error: 'Company not found' },
-        { status: 404 }
+        { error: 'Authentication required' },
+        { status: 401 }
       );
     }
 
-    // Fetch subscription status from backend
-    const backendUrl = new URL('http://localhost:4000/api/company/subscription-status');
-    const response = await fetch(backendUrl.toString(), {
+    const response = await fetch(`${BACKEND_API_URL}/api/company/subscription-status`, {
       headers: {
-        'Authorization': request.headers.get('authorization') || '',
+        Authorization: authorization,
       },
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch subscription status from backend');
-    }
+    const payload = await response.text();
+    const contentType = response.headers.get('content-type') || 'application/json';
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    return new NextResponse(payload, {
+      status: response.status,
+      headers: {
+        'Content-Type': contentType,
+      },
+    });
 
   } catch (error: any) {
     console.error('Error getting subscription status:', error);

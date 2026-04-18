@@ -53,7 +53,7 @@ npm install stripe
 
 Add to `.env.local` in website folder:
 
-```
+``` bash
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxx
 STRIPE_SECRET_KEY=sk_test_xxxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxxx
@@ -222,8 +222,8 @@ Update `website/src/app/page.tsx` to include link to pricing:
 
 ### Development Setup
 
-1. **Get Stripe Test Keys**: https://dashboard.stripe.com/test/apikeys
-2. **Set Webhook Endpoint**: https://dashboard.stripe.com/test/webhooks
+1. **Get Stripe Test Keys**: <https://dashboard.stripe.com/test/apikeys>
+2. **Set Webhook Endpoint**: <https://dashboard.stripe.com/test/webhooks>
    - Endpoint: `http://your-domain/api/stripe/webhook`
    - Events: `customer.subscription.created`, `customer.subscription.updated`
 
@@ -243,6 +243,7 @@ Update `website/src/app/page.tsx` to include link to pricing:
 ## 📝 Database Considerations
 
 The companies table needs these columns (verify they exist):
+
 - `subscription_plan_id` - FK to subscription_plans
 - `subscription_status` - enum('active', 'inactive', 'trial', 'expired')
 - `subscription_start_date` - timestamp
@@ -252,12 +253,14 @@ The companies table needs these columns (verify they exist):
 ## 🚀 Flutter Integration
 
 Flutter app will:
+
 1. Open pricing page in webview or browser
 2. User taps "Register as Rep" button
 3. Redirected to registration form (pre-filled if returning user)
 4. After registration, user can see dashboard/portal
 
 The Flutter links are already configured in:
+
 - `FLUTTER_APP_LINK` - Android Play Store
 - `FLUTTER_IOS_LINK` - iOS App Store
 

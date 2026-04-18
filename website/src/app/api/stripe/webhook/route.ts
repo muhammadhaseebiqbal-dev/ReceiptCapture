@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 
 export const runtime = 'nodejs';
 
@@ -55,6 +56,14 @@ async function syncSubscriptionToBackend(payload: Record<string, unknown>) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (FORCE_STRIPE_SIMULATION) {
+      return NextResponse.json({
+        received: true,
+        simulated: true,
+        message: STRIPE_SIMULATION_MESSAGE,
+      });
+    }
+
     const stripe = getStripeClient();
     if (!stripe) {
       return NextResponse.json(

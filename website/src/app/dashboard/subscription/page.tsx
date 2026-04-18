@@ -104,11 +104,38 @@ export default function SubscriptionPage() {
         usageRes.json(),
       ]);
 
+      const rawUsage = usageData?.usage || {};
+      const staffCount = Number(rawUsage.staffCount || 0);
+      const receiptsThisMonth = Number(rawUsage.receiptsThisMonth || 0);
+      const maxUsers = Number(rawUsage.maxUsers || rawUsage.limits?.maxUsers || 0);
+      const maxReceipts = Number(rawUsage.maxReceipts || rawUsage.limits?.maxReceipts || 0);
+      const storageUsed = Number(rawUsage.storageUsed || 0);
+      const maxStorage = Number(rawUsage.maxStorage || rawUsage.limits?.maxStorage || 1000);
+
+      const usage = {
+        staffCount,
+        activeStaffCount: Number(rawUsage.activeStaffCount || staffCount),
+        receiptsThisMonth,
+        totalReceipts: Number(rawUsage.totalReceipts || receiptsThisMonth),
+        storageUsed,
+        limits: {
+          maxUsers,
+          maxReceipts,
+          maxStorage,
+        },
+        usagePercentage: {
+          users: maxUsers > 0 ? Math.round((staffCount / maxUsers) * 100) : 0,
+          receipts: maxReceipts > 0 ? Math.round((receiptsThisMonth / maxReceipts) * 100) : 0,
+          storage: maxStorage > 0 ? Math.round((storageUsed / maxStorage) * 100) : 0,
+        },
+        monthlyUsage: Array.isArray(rawUsage.monthlyUsage) ? rawUsage.monthlyUsage : [],
+      };
+
       setData({
         currentPlan: billingData.currentPlan,
         availablePlans: plansData.plans || [],
         billingHistory: billingData.billingHistory || [],
-        usage: usageData.usage,
+        usage,
       });
 
     } catch (error) {

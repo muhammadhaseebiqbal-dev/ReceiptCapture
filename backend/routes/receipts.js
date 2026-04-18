@@ -27,6 +27,12 @@ function getAllowedReceiptRoles() {
   return ['company_representative', 'manager', 'employee', 'master_admin'];
 }
 
+function parseDateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 async function getCompanyById(companyId) {
   const result = await db.query(
     `select id, name, destination_email, subscription_plan_id, subscription_status
@@ -104,6 +110,124 @@ async function createSyncQueueEntry(tx, payload) {
 
   return result[0];
 }
+
+receiptsRouter.get('/', requireAuth(getAllowedReceiptRoles()), async (req, res) => {
+  try {
+    const role = req.auth.role;
+    const companyId = role === 'master_admin' ? req.query.companyId || req.auth.companyId : req.auth.companyId;
+
+    if (!companyId) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const status = String(req.query.status || '').trim();
+    const search = String(req.query.search || '').trim().toLowerCase();
+    const startDate = parseDateValue(req.query.startDate);
+    const endDate = parseDateValue(req.query.endDate);
+    const minAmount = req.query.minAmount === undefined ? null : Number(req.query.minAmount);
+    const maxAmount = req.query.maxAmount === undefined ? null : Number(req.query.maxAmount);
+    const page = Math.max(Number(req.query.page || 1), 1);
+    const limit = Math.max(Number(req.query.limit || 10), 1);
+
+    const result = await db.query(
+      `select
+         r.id,
+         r.user_id,
+         r.company_id,
+         r.image_path,
+         r.merchant_name,
+         r.amount,
+         r.receipt_date,
+         r.category,
+         r.notes,
+         r.status,
+         r.email_sent_at,
+         r.created_at,
+         u.name as user_name,
+         u.email as user_email
+       from receipts r
+       left join users u on u.id = r.user_id
+       where r.company_id = $1
+       order by r.created_at desc`,
+      [companyId]
+    );
+
+    const allReceipts = result.rows || [];
+
+    const filtered = allReceipts.filter((item) => {
+      if (status && status !== 'all' && item.status !== status) {
+        return false;
+      }
+
+      const eventDate = parseDateValue(item.receipt_date || item.created_at);
+      if (startDate && eventDate && eventDate < startDate) {
+        return false;
+      }
+
+      if (endDate && eventDate && eventDate > endDate) {
+        return false;
+      }
+
+      const amount = item.amount === null || item.amount === undefined ? null : Number(item.amount);
+      if (minAmount !== null && Number.isFinite(minAmount) && (amount === null || amount < minAmount)) {
+        return false;
+      }
+
+      if (maxAmount !== null && Number.isFinite(maxAmount) && (amount === null || amount > maxAmount)) {
+        return false;
+      }
+
+      if (search) {
+        const haystack = `${item.merchant_name || ''} ${item.notes || ''} ${item.category || ''}`.toLowerCase();
+        if (!haystack.includes(search)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    const total = filtered.length;
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+    const start = (page - 1) * limit;
+    const pageRows = filtered.slice(start, start + limit);
+
+    return res.json({
+      receipts: pageRows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        companyId: row.company_id,
+        imagePath: row.image_path,
+        merchantName: row.merchant_name,
+        amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+        receiptDate: row.receipt_date,
+        category: row.category,
+        notes: row.notes,
+        status: row.status,
+        emailSentAt: row.email_sent_at,
+        createdAt: row.created_at,
+        userName: row.user_name || 'Unknown User',
+        userEmail: row.user_email || '',
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      stats: {
+        total: allReceipts.length,
+        pending: allReceipts.filter((r) => r.status === 'pending').length,
+        processed: allReceipts.filter((r) => r.status === 'processed').length,
+        sent: allReceipts.filter((r) => r.status === 'sent').length,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch receipts' });
+  }
+});
 
 receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req, res) => {
   const contentType = req.headers['content-type'] || '';

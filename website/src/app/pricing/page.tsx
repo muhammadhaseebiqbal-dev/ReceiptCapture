@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { FORCE_STRIPE_SIMULATION } from '@/lib/stripe-mode';
 import { 
   Check,
   ArrowRight,
@@ -247,7 +248,11 @@ export default function PricingPage() {
             </div>
             <div>
               <h4 className="font-semibold mb-2">What payment methods do you accept?</h4>
-              <p className="text-gray-600">We accept all major credit cards through our secure Stripe payment processor.</p>
+              <p className="text-gray-600">
+                {FORCE_STRIPE_SIMULATION
+                  ? 'Stripe is currently running in simulated mode for development. You can complete the full payment flow UI without a real charge.'
+                  : 'We accept all major credit cards through our secure Stripe payment processor.'}
+              </p>
             </div>
             <div>
               <h4 className="font-semibold mb-2">Need help choosing?</h4>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireAuth } from '@/lib/api-auth';
+import { FORCE_STRIPE_SIMULATION, STRIPE_SIMULATION_MESSAGE } from '@/lib/stripe-mode';
 
 export const runtime = 'nodejs';
 
@@ -112,6 +113,16 @@ export async function POST(request: NextRequest) {
     const billingInterval = normalizeBillingInterval(plan.billingCycle || plan.billing_cycle);
     const planName = String(plan.name || 'Subscription Plan');
     const planDescription = plan.description ? String(plan.description) : undefined;
+
+    if (FORCE_STRIPE_SIMULATION) {
+      const simulatedUrl = `${appBaseUrl}/register/success?stripe=simulated&plan=${encodeURIComponent(planName)}`;
+      return NextResponse.json({
+        simulated: true,
+        message: STRIPE_SIMULATION_MESSAGE,
+        sessionId: `sim_${Date.now()}`,
+        url: simulatedUrl,
+      });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
