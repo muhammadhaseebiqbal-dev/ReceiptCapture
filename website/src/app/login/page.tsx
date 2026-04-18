@@ -50,15 +50,25 @@ export default function LoginPage() {
       // Store token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      document.cookie = `token=${encodeURIComponent(data.token)}; Path=/; Max-Age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+      if (data.user && data.user.isActive === false) {
+        sessionStorage.setItem(
+          'accountStatusNotice',
+          'Your account is not verified yet. You can view the portal, but some actions may remain restricted until verification is completed.'
+        );
+      } else {
+        sessionStorage.removeItem('accountStatusNotice');
+      }
 
       // Clear selected plan from session
       sessionStorage.removeItem('selectedPlan');
 
       // Redirect based on role
       if (data.user.role === 'master_admin') {
-        router.push('/admin');
+        window.location.href = '/admin';
       } else {
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
       }
       
     } catch (err: any) {

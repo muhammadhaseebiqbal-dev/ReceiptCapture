@@ -209,7 +209,43 @@ export default function RegisterPage() {
         throw new Error(result.error || 'Registration failed');
       }
 
-      setSuccess('Registration successful! Please check your email for verification instructions.');
+      const token = result?.token as string | undefined;
+      const user = result?.user;
+
+      if (token) {
+        localStorage.setItem('token', token);
+        document.cookie = `token=${encodeURIComponent(token)}; Path=/; Max-Age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      }
+
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      if (token && formData.selectedPlanId) {
+        const checkoutResponse = await fetch('/api/stripe/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            planId: formData.selectedPlanId,
+          }),
+        });
+
+        const checkoutResult = await checkoutResponse.json();
+
+        if (checkoutResponse.ok && checkoutResult?.url) {
+          window.location.href = checkoutResult.url;
+          return;
+        }
+
+        if (!checkoutResponse.ok && checkoutResponse.status !== 503) {
+          throw new Error(checkoutResult?.error || 'Unable to start Stripe checkout');
+        }
+      }
+
+      setSuccess('Registration successful. Stripe checkout is not available yet, so you were registered without payment.');
       
       // Redirect to success page or login after a delay
       setTimeout(() => {
@@ -556,7 +592,7 @@ export default function RegisterPage() {
                     disabled={isSubmitting}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
-                    {isSubmitting ? 'Creating Account...' : 'Complete Registration'}
+                    {isSubmitting ? 'Creating Account and Redirecting to Stripe...' : 'Complete Registration and Pay'}
                   </Button>
                 </div>
               </div>

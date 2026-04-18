@@ -8,6 +8,8 @@ import { companiesRouter } from './companies.js';
 import { adminRouter } from './admin.js';
 import { receiptsRouter } from './receipts.js';
 import { syncRouter } from './sync.js';
+import { subscriptionStatusRouter } from './subscription-status.js';
+import { stripeRouter } from './stripe.js';
 
 export const apiRouter = Router();
 
@@ -16,7 +18,9 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/staff', staffRouter);
 apiRouter.use('/subscription-plans', subscriptionPlansRouter);
 apiRouter.use('/company', companyRouter);
+apiRouter.use('/company/subscription-status', subscriptionStatusRouter);
 apiRouter.use('/companies', companiesRouter);
 apiRouter.use('/admin', adminRouter);
 apiRouter.use('/receipts', receiptsRouter);
 apiRouter.use('/sync', syncRouter);
+apiRouter.use('/stripe', stripeRouter);

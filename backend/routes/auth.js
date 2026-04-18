@@ -183,7 +183,7 @@ authRouter.post('/login', async (req, res) => {
     }
 
     const user = await getUserByEmail(email);
-    if (!user || !user.is_active) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -201,6 +201,9 @@ authRouter.post('/login', async (req, res) => {
 
     return res.json({
       token,
+      accountStatus: user.is_active ? 'active' : 'inactive',
+      requiresVerification: !user.is_active,
+      message: user.is_active ? undefined : 'Account is not verified yet. Access is limited until verification is complete.',
       tokenPayload: {
         userId: user.id,
         email: user.email,

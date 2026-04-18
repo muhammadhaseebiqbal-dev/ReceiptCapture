@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { User, Company, AppUser } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Users, Receipt, Settings, LogOut, Mail } from 'lucide-react';
+import { Users, Receipt, Settings, LogOut, Mail, AlertCircle } from 'lucide-react';
 
 interface DashboardData {
   user: User;
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [accountNotice, setAccountNotice] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -30,8 +32,15 @@ export default function DashboardPage() {
     }
 
     const user = JSON.parse(userStr);
-    // Allow primary_representative, representative, or company_representative roles
-    const allowedRoles = ['primary_representative', 'representative', 'company_representative'];
+    // Allow representative and owner role variants used across environments.
+    const allowedRoles = [
+      'primary_representative',
+      'representative',
+      'company_representative',
+      'company_owner',
+      'owner',
+      'company_admin',
+    ];
     if (!allowedRoles.includes(user.role)) {
       router.push('/login');
       return;
@@ -39,6 +48,12 @@ export default function DashboardPage() {
 
     // Load dashboard data
     loadDashboardData(user);
+
+    const notice = sessionStorage.getItem('accountStatusNotice');
+    if (notice) {
+      setAccountNotice(notice);
+      sessionStorage.removeItem('accountStatusNotice');
+    }
   }, [router]);
 
   const loadDashboardData = async (user: User) => {
@@ -93,6 +108,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    document.cookie = 'token=; Path=/; Max-Age=0; SameSite=Lax';
     router.push('/login');
   };
 
@@ -140,6 +156,13 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {accountNotice && (
+          <Alert className="mb-6 border-yellow-400 bg-yellow-50 text-yellow-900">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{accountNotice}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
