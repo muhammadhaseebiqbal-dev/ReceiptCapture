@@ -38,6 +38,33 @@ function mapStripeStatusToAppStatus(status: string | undefined) {
   }
 }
 
+function addInterval(baseDate: Date, billingCycle: string | null | undefined) {
+  const date = new Date(baseDate);
+  const normalizedCycle = String(billingCycle || '').toLowerCase();
+
+  if (normalizedCycle === 'annual' || normalizedCycle === 'yearly' || normalizedCycle === 'year') {
+    date.setFullYear(date.getFullYear() + 1);
+    return date;
+  }
+
+  date.setMonth(date.getMonth() + 1);
+  return date;
+}
+
+function parseStripeTimestamp(value: unknown, fallback: Date) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  const parsed = new Date(numericValue * 1000);
+  if (Number.isNaN(parsed.getTime())) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
 async function syncSubscriptionToBackend(payload: Record<string, unknown>) {
   const syncSecret = process.env.STRIPE_WEBHOOK_SYNC_SECRET;
   if (!syncSecret) {
@@ -104,6 +131,9 @@ export async function POST(request: NextRequest) {
         const subscription = (await stripe.subscriptions.retrieve(String(session.subscription))) as unknown as StripeSubscriptionPeriod;
         const companyId = String(session.metadata?.companyId || subscription.metadata?.companyId || session.client_reference_id || '');
         const planId = String(session.metadata?.planId || subscription.metadata?.planId || '');
+        const billingCycle = String(session.metadata?.billingCycle || subscription.metadata?.billingCycle || 'monthly');
+        const startDate = parseStripeTimestamp(subscription.current_period_start, new Date());
+        const endDate = parseStripeTimestamp(subscription.current_period_end, addInterval(startDate, billingCycle));
 
         if (companyId && planId) {
           await syncSubscriptionToBackend({
@@ -111,9 +141,9 @@ export async function POST(request: NextRequest) {
             planId,
             planName: session.metadata?.planName || subscription.metadata?.planName || 'Subscription Plan',
             status: mapStripeStatusToAppStatus(subscription.status),
-            startDate: new Date(subscription.current_period_start * 1000).toISOString(),
-            endDate: new Date(subscription.current_period_end * 1000).toISOString(),
-            billingCycle: session.metadata?.billingCycle || subscription.metadata?.billingCycle || 'monthly',
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            billingCycle,
             stripeSubscriptionId: subscription.id,
             stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id || null,
             eventId: event.id,
@@ -126,6 +156,9 @@ export async function POST(request: NextRequest) {
       const subscription = event.data.object as StripeSubscriptionPeriod;
       const companyId = String(subscription.metadata?.companyId || '');
       const planId = String(subscription.metadata?.planId || '');
+      const billingCycle = String(subscription.metadata?.billingCycle || 'monthly');
+      const startDate = parseStripeTimestamp(subscription.current_period_start, new Date());
+      const endDate = parseStripeTimestamp(subscription.current_period_end, addInterval(startDate, billingCycle));
 
       if (companyId && planId) {
         await syncSubscriptionToBackend({
@@ -133,9 +166,9 @@ export async function POST(request: NextRequest) {
           planId,
           planName: subscription.metadata?.planName || 'Subscription Plan',
           status: mapStripeStatusToAppStatus(subscription.status),
-          startDate: new Date(subscription.current_period_start * 1000).toISOString(),
-          endDate: new Date(subscription.current_period_end * 1000).toISOString(),
-          billingCycle: subscription.metadata?.billingCycle || 'monthly',
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          billingCycle,
           stripeSubscriptionId: subscription.id,
           stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id || null,
           eventId: event.id,
