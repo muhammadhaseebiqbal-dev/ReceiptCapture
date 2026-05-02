@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { proxyJsonRequest } from '@/lib/backend-proxy';
 
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:4000';
+
 // GET - Fetch all subscription plans (PUBLIC - no auth required for landing page)
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch('http://localhost:4000/api/subscription-plans', {
+    const response = await fetch(`${BACKEND_API_URL}/api/subscription-plans`, {
       headers: {
         Authorization: request.headers.get('authorization') || '',
       },

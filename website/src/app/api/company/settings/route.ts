@@ -3,14 +3,7 @@ import { proxyJsonRequest } from '@/lib/backend-proxy';
 
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch('http://localhost:4000/api/company/settings', {
-      headers: {
-        Authorization: request.headers.get('authorization') || '',
-      },
-    });
-
-    const payload = await response.json();
-    return NextResponse.json(payload, { status: response.status });
+    return await proxyJsonRequest(request, '/api/company/settings', 'GET');
   } catch (error) {
     console.error('Get company settings error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

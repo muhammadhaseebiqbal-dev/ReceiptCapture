@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { proxyJsonRequest } from '@/lib/backend-proxy';
 
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch('http://localhost:4000/api/company/settings', {
-      headers: {
-        Authorization: request.headers.get('authorization') || '',
-      },
-    });
-
+    const response = await proxyJsonRequest(request, '/api/company/settings', 'GET');
     const payload = await response.json();
     return NextResponse.json(
       {
