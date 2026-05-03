@@ -43,6 +43,42 @@ async function getCompanyById(companyId) {
   return result.rows[0] || null;
 }
 
+async function getCompanyReceiptQuota(companyId) {
+  const result = await db.query(
+    `select
+       c.subscription_status,
+       sp.name as plan_name,
+       sp.max_receipts_per_month,
+       (
+         select count(*)::int
+         from receipts r
+         where r.company_id = c.id
+           and r.created_at >= date_trunc('month', now())
+       ) as receipts_this_month
+     from companies c
+     left join subscription_plans sp on sp.id = c.subscription_plan_id
+     where c.id = $1
+     limit 1`,
+    [companyId]
+  );
+
+  const row = result.rows[0] || null;
+  if (!row) return null;
+
+  return {
+    subscriptionStatus: row.subscription_status,
+    planName: row.plan_name,
+    maxReceiptsPerMonth: row.max_receipts_per_month == null ? null : Number(row.max_receipts_per_month),
+    receiptsThisMonth: Number(row.receipts_this_month || 0),
+  };
+}
+
+function isQuotaExceeded(quota) {
+  if (!quota) return false;
+  if (!quota.maxReceiptsPerMonth || quota.maxReceiptsPerMonth <= 0) return false;
+  return quota.receiptsThisMonth >= quota.maxReceiptsPerMonth;
+}
+
 async function insertReceiptRecord(tx, payload) {
   const result = await tx`
     insert into receipts (
@@ -273,6 +309,20 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
     const company = await getCompanyById(companyId);
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
+    }
+
+    const quota = await getCompanyReceiptQuota(companyId);
+    if (quota?.subscriptionStatus && !['active', 'trial'].includes(quota.subscriptionStatus)) {
+      return res.status(403).json({ error: 'Subscription is not active' });
+    }
+
+    if (isQuotaExceeded(quota)) {
+      return res.status(403).json({
+        error: 'Receipt limit reached for this plan',
+        planName: quota.planName || 'Current plan',
+        receiptsThisMonth: quota.receiptsThisMonth,
+        maxReceiptsPerMonth: quota.maxReceiptsPerMonth,
+      });
     }
 
     if (!fileBuffer && !fields.imageBase64) {

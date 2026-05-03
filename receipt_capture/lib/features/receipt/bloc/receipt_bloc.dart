@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/database/models.dart';
 import '../../../core/database/receipt_repository.dart';
 import '../../../core/services/camera_service.dart';
-import '../../../core/utils/pdf_utils.dart';
+import '../../../core/services/company_quota_service.dart';
+import '../../../core/services/sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'receipt_event.dart';
 import 'receipt_state.dart';
 
@@ -15,6 +18,7 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
     CameraService? cameraService,
   }) : _receiptRepository = receiptRepository ?? ReceiptRepository.instance,
        _cameraService = cameraService ?? CameraService.instance,
+       _quotaService = CompanyQuotaService(),
        super(const ReceiptState()) {
     on<LoadReceipts>(_onLoadReceipts);
     on<RefreshReceipts>(_onRefreshReceipts);
@@ -30,6 +34,7 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
 
   final ReceiptRepository _receiptRepository;
   final CameraService _cameraService;
+  final CompanyQuotaService _quotaService;
   final Uuid _uuid = const Uuid();
 
   Future<void> _onLoadReceipts(
@@ -75,6 +80,24 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
     emit(state.copyWith(status: ReceiptStatus.loading));
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final isConnected = await Connectivity().checkConnectivity() != ConnectivityResult.none;
+      final quota = await _quotaService.getCurrentQuota(token: token);
+
+      if (quota != null && quota.isLimitReached) {
+        final maxReceipts = quota.maxReceiptsPerMonth ?? 0;
+        final usedReceipts = quota.receiptsThisMonth ?? 0;
+        emit(
+          state.copyWith(
+            status: ReceiptStatus.failure,
+            errorMessage:
+                'Your plan limit has been reached ($usedReceipts/$maxReceipts receipts this month). Upgrade your plan to continue.',
+          ),
+        );
+        return;
+      }
+
       // Generate PDF from the image (use cropped if available, otherwise original)
       final imagePathForPdf = event.croppedImagePath ?? event.imagePath;
       String? pdfPath;
@@ -125,6 +148,15 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
       );
 
       await _receiptRepository.createReceipt(receipt);
+
+      if (isConnected) {
+        try {
+          final syncService = SyncService(_receiptRepository, prefs);
+          await syncService.syncNow();
+        } catch (syncError) {
+          debugPrint('=== RECEIPT CREATION: Immediate sync failed: $syncError');
+        }
+      }
 
       // Refresh the receipts list
       final receipts = await _receiptRepository.getAllReceipts();

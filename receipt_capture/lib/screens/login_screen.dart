@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String? _loginError;
   bool _obscurePassword = true;
   bool _rememberMe = false;
   late AnimationController _animationController;
@@ -63,6 +64,9 @@ class _LoginScreenState extends State<LoginScreen>
   void _login() {
     HapticFeedback.lightImpact();
     if (_formKey.currentState?.validate() ?? false) {
+      setState(() {
+        _loginError = null;
+      });
       context.read<AuthBloc>().add(
         AuthLogin(
           email: _emailController.text.trim(),
@@ -162,6 +166,9 @@ class _LoginScreenState extends State<LoginScreen>
             );
           } else if (state is AuthError) {
             HapticFeedback.heavyImpact();
+            setState(() {
+              _loginError = state.message;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
@@ -395,7 +402,7 @@ class _LoginScreenState extends State<LoginScreen>
                           // Login Button
                           BlocBuilder<AuthBloc, AuthState>(
                             builder: (context, state) {
-                              final isLoading = state is AuthLoading;
+                              final isLoading = state is AuthLoginLoading;
 
                               return Container(
                                 height: 56,
@@ -451,6 +458,19 @@ class _LoginScreenState extends State<LoginScreen>
                               );
                             },
                           ),
+
+                          if (_loginError != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _loginError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
 
                           const Spacer(flex: 3),
 

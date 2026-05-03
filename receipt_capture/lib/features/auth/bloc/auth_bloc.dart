@@ -45,7 +45,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onLogin(AuthLogin event, Emitter<AuthState> emit) async {
     try {
       print('[AuthBloc] Login event received for ${event.email}');
-      emit(AuthLoading());
+      emit(AuthLoginLoading());
       
       final result = await _authService.login(event.email, event.password);
       
