@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../features/receipt/bloc/receipt_bloc.dart';
 import '../features/receipt/bloc/receipt_state.dart';
+import '../core/services/company_quota_service.dart';
+import '../core/services/camera_service.dart';
 import '../shared/theme/app_theme.dart';
 import '../shared/widgets/loading_indicator.dart';
 import 'receipt_form_screen.dart';
@@ -25,6 +28,10 @@ class _CameraScreenState extends State<CameraScreen>
   bool _isCameraInitialized = false;
   bool _isFlashOn = false;
   bool _showInstructions = true;
+  bool _isQuotaLoading = true;
+  bool _isCameraInitFailed = false;
+  String _cameraInitError = '';
+  CompanyQuotaSnapshot? _quotaSnapshot;
   late AnimationController _scannerAnimationController;
 
   @override
@@ -36,6 +43,7 @@ class _CameraScreenState extends State<CameraScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     _initializeCamera();
+    _loadQuotaSnapshot();
   }
 
   @override
@@ -72,10 +80,60 @@ class _CameraScreenState extends State<CameraScreen>
     }
   }
 
+  bool get _isCaptureBlocked => _quotaSnapshot?.isLimitReached ?? false;
+
+  Future<void> _loadQuotaSnapshot() async {
+    try {
+      final quota = await CompanyQuotaService().getCurrentQuota();
+      if (!mounted) return;
+      setState(() {
+        _quotaSnapshot = quota;
+        _isQuotaLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _quotaSnapshot = null;
+        _isQuotaLoading = false;
+      });
+    }
+  }
+
+  void _showPlanLimitSnackBar() {
+    final quota = _quotaSnapshot;
+    final message = _isQuotaLoading
+        ? 'Checking your plan usage. Please try again in a moment.'
+        : quota == null || quota.maxReceiptsPerMonth == null
+            ? 'Plan usage could not be loaded right now.'
+            : quota.isLimitReached
+                ? 'You have reached your monthly receipt limit.'
+                : 'You can still capture receipts.';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _isCaptureBlocked ? AppTheme.errorColor : Colors.blue,
+      ),
+    );
+  }
+
   Future<void> _initializeCamera() async {
     try {
       // Dispose existing controller if any
       _disposeCamera();
+
+      final permissionStatus = await Permission.camera.request();
+      if (!permissionStatus.isGranted) {
+        if (mounted) {
+          setState(() {
+            _isCameraInitFailed = true;
+            _cameraInitError = permissionStatus.isPermanentlyDenied
+                ? 'Camera permission is permanently denied. Enable it in app settings.'
+                : 'Camera permission is required to use the preview.';
+          });
+        }
+        return;
+      }
 
       final cameras = await availableCameras();
       if (cameras.isNotEmpty && mounted) {
@@ -86,10 +144,21 @@ class _CameraScreenState extends State<CameraScreen>
           imageFormatGroup: ImageFormatGroup.jpeg,
         );
 
-        await _cameraController!.initialize();
-
-        // Enhance auto-detect engine by setting optimal focus & exposure
         try {
+          await _cameraController!.initialize();
+        } catch (e) {
+          debugPrint('Camera initialization error: $e');
+          if (mounted) {
+            setState(() {
+              _isCameraInitFailed = true;
+              _cameraInitError = 'Failed to initialize camera: $e';
+            });
+          }
+          return;
+        }
+        
+        try {
+          // Enhance auto-detect engine by setting optimal focus & exposure
           await _cameraController!.setFocusMode(FocusMode.auto);
           await _cameraController!.setExposureMode(ExposureMode.auto);
         } catch (_) {}
@@ -115,6 +184,11 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _captureImage() async {
+    if (_isCaptureBlocked) {
+      _showPlanLimitSnackBar();
+      return;
+    }
+
     if (!_isCameraInitialized || _cameraController == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -164,6 +238,11 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _pickFromGallery() async {
+    if (_isCaptureBlocked) {
+      _showPlanLimitSnackBar();
+      return;
+    }
+
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -221,9 +300,10 @@ class _CameraScreenState extends State<CameraScreen>
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
+    bool enabled = true,
   }) {
     return GestureDetector(
-      onTap: onPressed,
+      onTap: enabled ? onPressed : _showPlanLimitSnackBar,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -232,21 +312,90 @@ class _CameraScreenState extends State<CameraScreen>
             height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withOpacity(enabled ? 0.2 : 0.12),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withOpacity(enabled ? 0.3 : 0.15),
                 width: 1,
               ),
             ),
-            child: Icon(icon, color: Colors.white, size: 24),
+            child: Icon(
+              icon,
+              color: enabled ? Colors.white : Colors.white54,
+              size: 24,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: enabled ? Colors.white : Colors.white54,
               fontSize: 12,
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuotaBanner() {
+    final quota = _quotaSnapshot;
+    final isBlocked = _isCaptureBlocked;
+    final title = _isQuotaLoading
+        ? 'Checking plan usage...'
+        : quota == null || quota.maxReceiptsPerMonth == null
+            ? 'Plan usage unavailable'
+            : isBlocked
+                ? 'Plan limit reached'
+                : 'Plan usage';
+
+    final body = _isQuotaLoading
+        ? 'Loading your current receipt allowance.'
+        : quota == null || quota.maxReceiptsPerMonth == null
+            ? 'We will still validate your plan when you sync.'
+            : isBlocked
+                ? 'You have used all ${quota.maxReceiptsPerMonth} receipts for this month.'
+                : '${quota.receiptsThisMonth ?? 0} of ${quota.maxReceiptsPerMonth} receipts used this month.';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: isBlocked ? Colors.redAccent.withOpacity(0.92) : Colors.black.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(AppTheme.radiusM),
+        border: Border.all(
+          color: isBlocked ? Colors.redAccent.withOpacity(0.9) : Colors.white.withOpacity(0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isBlocked ? Icons.lock_outline : Icons.receipt_long_outlined,
+            color: Colors.white,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: AppTheme.bodySmall.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -325,6 +474,60 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                   ),
 
+                if (_isCameraInitFailed)
+                  Positioned.fill(
+                    child: Center(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.75),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.no_photography_outlined,
+                              color: Colors.white,
+                              size: 48,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Camera unavailable',
+                              style: AppTheme.bodyLarge.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _cameraInitError.isEmpty
+                                  ? 'Enable camera permission to capture receipts.'
+                                  : _cameraInitError,
+                              textAlign: TextAlign.center,
+                              style: AppTheme.bodySmall.copyWith(
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isCameraInitFailed = false;
+                                  _cameraInitError = '';
+                                });
+                                _initializeCamera();
+                              },
+                              child: const Text('Try Again'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Camera overlay with receipt guide (Animated auto-detect engine UI)
                 Positioned.fill(
                   child: AnimatedBuilder(
@@ -336,6 +539,15 @@ class _CameraScreenState extends State<CameraScreen>
                         ),
                       );
                     },
+                  ),
+                ),
+
+                Positioned(
+                  top: 120,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: _buildQuotaBanner(),
                   ),
                 ),
 
@@ -372,45 +584,57 @@ class _CameraScreenState extends State<CameraScreen>
                                 icon: Icons.photo_library_outlined,
                                 label: 'Gallery',
                                 onPressed: _pickFromGallery,
+                                enabled: !_isCaptureBlocked,
                               ),
                             ),
 
                             // Capture button - Perfectly centered
                             Positioned.fill(
                               child: Center(
-                                child: GestureDetector(
-                                  onTap: _captureImage,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 80,
-                                        height: 80,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 4,
-                                          ),
-                                        ),
-                                        child: Container(
-                                          margin: const EdgeInsets.all(8),
-                                          decoration: const BoxDecoration(
+                                child: Opacity(
+                                  opacity: _isCaptureBlocked ? 0.55 : 1,
+                                  child: GestureDetector(
+                                    onTap: _isCaptureBlocked
+                                        ? _showPlanLimitSnackBar
+                                        : _captureImage,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 80,
+                                          height: 80,
+                                          decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: Colors.white,
+                                            border: Border.all(
+                                              color: _isCaptureBlocked
+                                                  ? Colors.white54
+                                                  : Colors.white,
+                                              width: 4,
+                                            ),
+                                          ),
+                                          child: Container(
+                                            margin: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: _isCaptureBlocked
+                                                  ? Colors.white54
+                                                  : Colors.white,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Capture',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _isCaptureBlocked
+                                              ? 'Limit reached'
+                                              : 'Capture',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),

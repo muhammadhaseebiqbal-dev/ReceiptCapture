@@ -30,7 +30,7 @@ function getAllowedReceiptRoles() {
 function parseDateValue(value) {
   if (!value) return null;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
 }
 
 async function getCompanyById(companyId) {
@@ -301,6 +301,9 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
 
     await parseResult;
 
+    console.log('[UPLOAD] Fields received:', Object.keys(fields));
+    console.log('[UPLOAD] Auth info:', { userId: req.auth.userId, role: req.auth.role, companyId: req.auth.companyId });
+
     const companyId = req.auth.role === 'master_admin' ? fields.companyId || req.auth.companyId : req.auth.companyId;
     if (!companyId) {
       return res.status(404).json({ error: 'Company not found' });
@@ -308,10 +311,13 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
 
     const company = await getCompanyById(companyId);
     if (!company) {
+      console.error('[UPLOAD] Company not found:', companyId);
       return res.status(404).json({ error: 'Company not found' });
     }
 
     const quota = await getCompanyReceiptQuota(companyId);
+    console.log('[UPLOAD] Quota check:', { subscription: quota?.subscriptionStatus, limit: quota?.maxReceiptsPerMonth, used: quota?.receiptsThisMonth });
+    
     if (quota?.subscriptionStatus && !['active', 'trial'].includes(quota.subscriptionStatus)) {
       return res.status(403).json({ error: 'Subscription is not active' });
     }
@@ -336,7 +342,9 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
     const now = new Date().toISOString();
     const receiptId = fields.receiptId || fields.id || randomUUID();
     const userId = fields.userId || req.auth.userId;
-    const receiptDate = fields.receiptDate || fields.date || null;
+    const receiptDate = parseDateValue(fields.receiptDate || fields.date);
+
+    console.log('[UPLOAD] Creating receipt:', { receiptId, userId, companyId, imagePath: uploadedImage.publicPath });
 
     const receiptPayload = {
       id: receiptId,
@@ -374,6 +382,7 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
       return { receiptRow, queueRow };
     });
 
+    console.log('[UPLOAD] Success:', { receiptId, queueId: result.queueRow.id });
     return res.status(201).json({
       receipt: result.receiptRow,
       syncQueue: result.queueRow,
@@ -381,6 +390,7 @@ receiptsRouter.post('/upload', requireAuth(getAllowedReceiptRoles()), async (req
       message: 'Receipt uploaded successfully',
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to upload receipt' });
+    console.error('[UPLOAD] Error:', error.message, error.stack);
+    return res.status(500).json({ error: 'Failed to upload receipt', details: error.message });
   }
 });

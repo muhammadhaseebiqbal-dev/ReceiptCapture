@@ -110,6 +110,7 @@ class SyncService {
       
       int syncedCount = 0;
       int failedCount = 0;
+      const maxRetries = 5; // Max retry attempts before giving up
       
       for (final item in pendingItems) {
         try {
@@ -119,13 +120,21 @@ class SyncService {
           print('Failed to sync item ${item.queueId}: $e');
           failedCount++;
           
-          // Update retry count
+          // Keep item in pending status for retry, but increment retry count
+          final newRetryCount = item.retryCount + 1;
+          final shouldGiveUp = newRetryCount >= maxRetries;
+          
           final updatedItem = item.copyWith(
-            retryCount: item.retryCount + 1,
+            retryCount: newRetryCount,
             lastAttempt: DateTime.now(),
-            status: SyncStatus.failed,
+            // Keep as pending so it can be retried; only mark as failed after max retries
+            status: shouldGiveUp ? SyncStatus.failed : SyncStatus.pending,
           );
           await _receiptRepository.updateSyncQueueItem(updatedItem);
+          
+          if (shouldGiveUp) {
+            print('Max retries reached for item ${item.queueId}. Marking as failed.');
+          }
         }
       }
       

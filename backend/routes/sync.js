@@ -12,6 +12,12 @@ function parseNumber(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseDateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+}
+
 async function getCompanyById(companyId) {
   const result = await db.query(
     `select id, name, destination_email, subscription_plan_id, subscription_status
@@ -176,27 +182,33 @@ syncRouter.post('/queue', requireAuth(['company_representative', 'manager', 'emp
         const createdAt = item.createdAt || new Date().toISOString();
         const updatedAt = item.updatedAt || createdAt;
 
+        console.log('[SYNC QUEUE] Processing item:', { receiptId, queueId, hasMerchant: !!item.merchantName, hasAmount: !!item.amount });
+
         let imagePath = item.imagePath || null;
         if (!imagePath && item.imageBase64) {
           const saved = await saveBase64AsReceiptImage(item.imageBase64, item.mimeType, item.fileName);
           imagePath = saved.publicPath;
         }
 
-        const receiptRow = await insertReceiptRecord(tx, {
+        const receiptPayload = {
           id: receiptId,
           userId: item.userId || req.auth.userId,
           companyId,
           imagePath,
           merchantName: item.merchantName || null,
           amount: parseNumber(item.amount),
-          receiptDate: item.receiptDate || item.date || null,
+          receiptDate: parseDateValue(item.receiptDate || item.date),
           category: item.category || null,
           notes: item.notes || null,
           status: item.status || 'pending',
           emailSentAt: item.emailSentAt || null,
           createdAt,
           updatedAt,
-        });
+        };
+
+        console.log('[SYNC QUEUE] Receipt payload:', { ...receiptPayload, imagePath: imagePath ? 'set' : 'null' });
+
+        const receiptRow = await insertReceiptRecord(tx, receiptPayload);
 
         const queueRow = await createSyncQueueEntry(tx, {
           id: queueId,
@@ -211,6 +223,7 @@ syncRouter.post('/queue', requireAuth(['company_representative', 'manager', 'emp
           updatedAt,
         });
 
+        console.log('[SYNC QUEUE] Item saved successfully');
         results.push({ receipt: receiptRow, syncQueue: queueRow });
       }
 
@@ -224,6 +237,7 @@ syncRouter.post('/queue', requireAuth(['company_representative', 'manager', 'emp
       emailForwarding: 'skipped',
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to process sync batch' });
+    console.error('[SYNC QUEUE] Error:', error.message, error.stack);
+    return res.status(500).json({ error: 'Failed to process sync batch', details: error.message });
   }
 });
