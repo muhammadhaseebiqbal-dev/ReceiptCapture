@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -19,7 +20,9 @@ class ReceiptDetailsScreen extends StatefulWidget {
 class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
   final _formKey = GlobalKey<FormState>();
   final _companyController = TextEditingController();
+  final _amountController = TextEditingController();
   final _notesController = TextEditingController();
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
 
   bool _isProcessing = false;
   bool _isConnected = false;
@@ -32,17 +35,31 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
     _extractReceiptData();
   }
 
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    _companyController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkConnectivity() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    setState(() {
-      _isConnected = connectivityResult != ConnectivityResult.none;
-    });
+    if (mounted) {
+      setState(() {
+        _isConnected = connectivityResult != ConnectivityResult.none;
+      });
+    }
 
     // Listen to connectivity changes
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      setState(() {
-        _isConnected = result != ConnectivityResult.none;
-      });
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      if (mounted) {
+        setState(() {
+          _isConnected = result != ConnectivityResult.none;
+        });
+      }
     });
   }
 
@@ -59,9 +76,14 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
       );
 
       _extractedCompany = extractedData['company'] ?? 'Unknown Business';
+      final amount = extractedData['amount'];
+      final amountStr = amount != null ? amount.toStringAsFixed(2) : '';
 
       setState(() {
         _companyController.text = _extractedCompany;
+        if (amountStr.isNotEmpty) {
+          _amountController.text = amountStr;
+        }
         _isProcessing = false;
       });
     } catch (e) {
@@ -78,10 +100,16 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
   Future<void> _sendReceipt() async {
     if (!_formKey.currentState!.validate()) return;
 
+    double? amount;
+    if (_amountController.text.isNotEmpty) {
+      amount = double.tryParse(_amountController.text);
+    }
+
     context.read<ReceiptBloc>().add(
       CreateReceipt(
         imagePath: widget.imagePath,
         merchantName: _companyController.text,
+        amount: amount,
         date: DateTime.now(),
         notes: _notesController.text.isEmpty ? null : _notesController.text,
       ),
@@ -207,6 +235,35 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
                 ],
                 const SizedBox(height: 24),
                 Text(
+                  'Receipt Amount',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _amountController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter receipt amount',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    prefixIcon: const Icon(Icons.attach_money),
+                    prefixText: '\$ ',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      final amount = double.tryParse(value);
+                      if (amount == null) {
+                        return 'Please enter a valid amount';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                Text(
                   'Notes (Optional)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
@@ -246,12 +303,5 @@ class _ReceiptDetailsScreenState extends State<ReceiptDetailsScreen> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _companyController.dispose();
-    _notesController.dispose();
-    super.dispose();
   }
 }

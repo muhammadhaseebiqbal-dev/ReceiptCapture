@@ -278,8 +278,9 @@ class ReceiptRepository {
     try {
       final List<Map<String, dynamic>> maps = await db.query(
         DatabaseHelper.tableSyncQueue,
-        where: '${DatabaseHelper.columnStatus} = ?',
-        whereArgs: ['PENDING'],
+        where:
+            '${DatabaseHelper.columnStatus} IN (?, ?, ?) AND ${DatabaseHelper.columnRetryCount} < ?',
+        whereArgs: ['PENDING', 'PROCESSING', 'FAILED', 5],
         orderBy: '${DatabaseHelper.columnLastAttempt} ASC',
       );
 

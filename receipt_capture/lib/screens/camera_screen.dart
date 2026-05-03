@@ -26,6 +26,7 @@ class _CameraScreenState extends State<CameraScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   bool _isCameraInitialized = false;
+  bool _isInitializingCamera = false;
   bool _isFlashOn = false;
   bool _showInstructions = true;
   bool _isQuotaLoading = true;
@@ -56,12 +57,9 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _cameraController;
-    if (controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
-    if (state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _disposeCamera();
     } else if (state == AppLifecycleState.resumed) {
       _initializeCamera();
@@ -118,7 +116,18 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> _initializeCamera() async {
+    if (_isInitializingCamera) return;
+    _isInitializingCamera = true;
+
     try {
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+          _isCameraInitFailed = false;
+          _cameraInitError = '';
+        });
+      }
+
       // Dispose existing controller if any
       _disposeCamera();
 
@@ -136,50 +145,68 @@ class _CameraScreenState extends State<CameraScreen>
       }
 
       final cameras = await availableCameras();
-      if (cameras.isNotEmpty && mounted) {
-        _cameraController = CameraController(
-          cameras.first,
-          ResolutionPreset.high, // Balanced for performance and OCR detection
-          enableAudio: false,
-          imageFormatGroup: ImageFormatGroup.jpeg,
-        );
-
-        try {
-          await _cameraController!.initialize();
-        } catch (e) {
-          debugPrint('Camera initialization error: $e');
-          if (mounted) {
-            setState(() {
-              _isCameraInitFailed = true;
-              _cameraInitError = 'Failed to initialize camera: $e';
-            });
-          }
-          return;
-        }
-        
-        try {
-          // Enhance auto-detect engine by setting optimal focus & exposure
-          await _cameraController!.setFocusMode(FocusMode.auto);
-          await _cameraController!.setExposureMode(ExposureMode.auto);
-        } catch (_) {}
-
+      if (cameras.isEmpty) {
         if (mounted) {
           setState(() {
-            _isCameraInitialized = true;
-          });
-
-          // Hide instructions after 1 second delay
-          Future.delayed(const Duration(seconds: 1), () {
-            if (mounted) {
-              setState(() {
-                _showInstructions = false;
-              });
-            }
+            _isCameraInitFailed = true;
+            _cameraInitError = 'No camera found on this device.';
           });
         }
+        return;
+      }
+
+      if (!mounted) return;
+
+      _cameraController = CameraController(
+        cameras.first,
+        ResolutionPreset.high, // Balanced for performance and OCR detection
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
+      );
+
+      try {
+        await _cameraController!.initialize();
+      } catch (e) {
+        debugPrint('Camera initialization error: $e');
+        if (mounted) {
+          setState(() {
+            _isCameraInitFailed = true;
+            _cameraInitError = 'Failed to initialize camera: $e';
+          });
+        }
+        return;
+      }
+
+      try {
+        // Enhance auto-detect engine by setting optimal focus & exposure
+        await _cameraController!.setFocusMode(FocusMode.auto);
+        await _cameraController!.setExposureMode(ExposureMode.auto);
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = true;
+        });
+
+        // Hide instructions after 1 second delay
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              _showInstructions = false;
+            });
+          }
+        });
       }
     } catch (e) {
-      print('Camera initialization error: $e');
+      debugPrint('Camera initialization error: $e');
+      if (mounted) {
+        setState(() {
+          _isCameraInitFailed = true;
+          _cameraInitError = 'Failed to initialize camera: $e';
+        });
+      }
+    } finally {
+      _isInitializingCamera = false;
     }
   }
 

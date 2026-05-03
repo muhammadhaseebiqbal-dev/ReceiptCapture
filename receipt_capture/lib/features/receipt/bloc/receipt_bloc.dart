@@ -136,8 +136,8 @@ class ReceiptBloc extends Bloc<ReceiptEvent, ReceiptState> {
         id: _uuid.v4(),
         imagePath: event.imagePath,
         croppedImagePath: event.croppedImagePath,
-        merchantName: dateTimeTitle, // Use date-time format as title instead of business name
-        amount: null, // Amount field removed
+        merchantName: event.merchantName,
+        amount: event.amount,
         date: event.date ?? DateTime.now(),
         category: event.category,
         notes: event.notes,

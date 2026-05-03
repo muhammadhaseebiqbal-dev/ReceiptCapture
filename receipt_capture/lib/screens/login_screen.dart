@@ -206,12 +206,13 @@ class _LoginScreenState extends State<LoginScreen>
           child: SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              child: Container(
-                height:
-                    screenSize.height -
-                    MediaQuery.of(context).padding.top -
-                    MediaQuery.of(context).padding.bottom,
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SizedBox(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: SlideTransition(
@@ -219,10 +220,10 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Spacer(flex: 2),
+                          const SizedBox(height: 24),
 
                           // App Logo and Title
                           Hero(
@@ -472,7 +473,7 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                           ],
 
-                          const Spacer(flex: 3),
+                          const SizedBox(height: 24),
 
                           // Contact Link
                           Padding(

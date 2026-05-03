@@ -20,6 +20,7 @@ class CreateReceipt extends ReceiptEvent {
   final String imagePath;
   final String? croppedImagePath;
   final String? merchantName;
+  final double? amount;
   final DateTime? date;
   final String? category;
   final String? notes;
@@ -28,6 +29,7 @@ class CreateReceipt extends ReceiptEvent {
     required this.imagePath,
     this.croppedImagePath,
     this.merchantName,
+    this.amount,
     this.date,
     this.category,
     this.notes,
@@ -38,6 +40,7 @@ class CreateReceipt extends ReceiptEvent {
     imagePath,
     croppedImagePath,
     merchantName,
+    amount,
     date,
     category,
     notes,
